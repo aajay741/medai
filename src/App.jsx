@@ -13,6 +13,8 @@ import Facilities from './sections/Facilities'
 import Quote from './sections/Quote'
 import Gallery from './sections/Gallery'
 import Experience from './sections/Experience'
+import Collaborators from './sections/Collaborators'
+import Voices from './sections/Voices'
 import Contact from './sections/Contact'
 
 export default function App() {
@@ -61,6 +63,8 @@ export default function App() {
                 <Venues scrollProgress={scrollProgress} />
                 <Facilities scrollProgress={scrollProgress} />
                 <Experience scrollProgress={scrollProgress} />
+                <Collaborators scrollProgress={scrollProgress} />
+                <Voices scrollProgress={scrollProgress} />
                 <Quote scrollProgress={scrollProgress} />
                 <Gallery scrollProgress={scrollProgress} />
                 <Contact />
