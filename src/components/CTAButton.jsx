@@ -4,9 +4,9 @@ export default function CTAButton({ children, onClick, variant = 'primary', clas
     const baseStyles = "px-8 py-4 rounded-full font-display font-bold text-lg transition-all duration-300 cursor-pointer relative overflow-hidden group"
 
     const variants = {
-        primary: "bg-gradient-to-r from-comedy-red to-comedy-purple text-white hover:shadow-2xl hover:shadow-comedy-red/50",
-        secondary: "bg-white text-stage-dark hover:bg-comedy-gold hover:text-stage-dark",
-        outline: "border-2 border-comedy-red text-comedy-red hover:bg-comedy-red hover:text-white"
+        primary: "bg-[#A78BFA] text-black hover:bg-white",
+        secondary: "bg-white text-black hover:bg-[#A78BFA]",
+        outline: "border-2 border-[#A78BFA] text-[#A78BFA] hover:bg-[#A78BFA] hover:text-black"
     }
 
     return (

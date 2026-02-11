@@ -7,8 +7,12 @@
   --font-main: 'Outfit', sans-serif;
   --bg-dark: #030303;
   --text-primary: #ffffff;
-  --text-secondary: #a1a1a1;
-  --accent: #ffffff;
+  --text-secondary: #a78bfa;
+  /* Muted, premium purple depth accent */
+  --text-dim: #71717a;
+  --accent: #a78bfa;
+  --depth-stroke: rgba(167, 139, 250, 0.15);
+  --depth-glow: rgba(167, 139, 250, 0.03);
 }
 
 * {
@@ -113,6 +117,7 @@ body {
 /* Lenis Fix */
 html.lenis {
   height: auto;
+  overflow-x: hidden;
 }
 
 .lenis.lenis-smooth {

@@ -2,64 +2,79 @@ import { motion } from 'framer-motion'
 
 export default function Contact() {
     return (
-        <footer className="relative pt-64 pb-12 px-6 bg-[#030303] z-20">
-            <div className="container mx-auto">
+        <footer className="relative pt-16 pb-12 px-6 bg-[#030303] z-20 overflow-hidden">
+            {/* Cinematic Background Glow */}
+            <div className="absolute -bottom-24 left-1/2 -translate-x-1/2 w-[80vw] h-[40vh] bg-[#A78BFA]/[0.05] blur-[120px] rounded-full pointer-events-none" />
+
+            <div className="container mx-auto relative z-10">
                 <div className="grid lg:grid-cols-2 gap-24 mb-48">
                     <motion.div
-                        initial={{ opacity: 0, x: -50 }}
+                        initial={{ opacity: 0, x: -30 }}
                         whileInView={{ opacity: 1, x: 0 }}
                         viewport={{ once: true }}
-                        transition={{ duration: 1 }}
+                        transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+                        className="flex flex-col items-center lg:items-start text-center lg:text-left"
                     >
-                        <h2 className="heading-huge mb-12 tracking-[-0.08em]">TALK.</h2>
-                        <p className="text-2xl text-secondary max-w-sm leading-tight font-light italic">
+                        <h2 className="text-7xl md:text-9xl font-black mb-12 tracking-[-0.08em] uppercase leading-none text-white">TALK.</h2>
+                        <p className="text-2xl md:text-3xl text-white/70 max-w-sm leading-tight font-black italic">
                             Ready to take the stage? Connect with our team to book your curation.
                         </p>
                     </motion.div>
 
-                    <div className="grid grid-cols-2 gap-12">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-12 text-center md:text-left">
                         <div className="space-y-12">
                             <div>
-                                <span className="text-meta block mb-6 opacity-40">Locations</span>
-                                <ul className="space-y-3 font-medium text-sm">
-                                    <li>Chennai - Alwarpet</li>
-                                    <li>Bengaluru - Koramangala</li>
-                                    <li>Coimbatore - Race Course</li>
+                                <span className="text-[11px] md:text-xs font-black tracking-[0.5em] block mb-6 text-[#A78BFA] opacity-80 uppercase">Locations</span>
+                                <ul className="space-y-4 font-black text-xs tracking-widest text-white/60">
+                                    <li className="hover:text-white hover:text-[#A78BFA] transition-colors cursor-default">CHENNAI - ALWARPET</li>
+                                    <li className="hover:text-white hover:text-[#A78BFA] transition-colors cursor-default">BENGALURU - KORAMANGALA</li>
+                                    <li className="hover:text-white hover:text-[#A78BFA] transition-colors cursor-default">COIMBATORE - RACE COURSE</li>
                                 </ul>
                             </div>
                             <div>
-                                <span className="text-meta block mb-6 opacity-40">Social</span>
-                                <ul className="space-y-3 font-medium text-sm">
-                                    <li><a href="#" className="hover:text-blue-500 transition-colors uppercase tracking-widest text-[10px]">Instagram</a></li>
-                                    <li><a href="#" className="hover:text-blue-500 transition-colors uppercase tracking-widest text-[10px]">Facebook</a></li>
-                                    <li><a href="#" className="hover:text-blue-500 transition-colors uppercase tracking-widest text-[10px]">LinkedIn</a></li>
+                                <span className="text-[11px] md:text-xs font-black tracking-[0.5em] block mb-6 text-[#A78BFA] opacity-80 uppercase">Social</span>
+                                <ul className="space-y-4">
+                                    {['Instagram', 'Facebook', 'LinkedIn'].map(social => (
+                                        <li key={social}>
+                                            <a href="#" className="text-[11px] font-black tracking-[0.4em] uppercase text-[#A78BFA] opacity-60 hover:opacity-100 hover:text-white hover:translate-x-3 transition-all inline-block underline-offset-8 decoration-[#A78BFA]/20 hover:decoration-white/50">
+                                                {social}
+                                            </a>
+                                        </li>
+                                    ))}
                                 </ul>
                             </div>
                         </div>
 
                         <div className="space-y-12 flex flex-col justify-between">
-                            <div>
-                                <span className="text-meta block mb-6 opacity-40">Direct</span>
-                                <p className="font-bold text-lg mb-1">hello@medai.in</p>
-                                <p className="opacity-40 text-sm italic">+91 98765 43210</p>
-                            </div>
+                            <motion.div
+                                whileHover={{ x: 5 }}
+                                transition={{ duration: 0.4 }}
+                            >
+                                <span className="text-[11px] md:text-xs font-black tracking-[0.5em] block mb-6 text-[#A78BFA] opacity-80 uppercase">Direct</span>
+                                <p className="font-black text-xl md:text-2xl mb-1 tracking-tighter hover:text-[#A78BFA] transition-colors cursor-pointer text-white">hello@medai.in</p>
+                                <p className="text-[#A78BFA] opacity-60 text-sm italic tracking-widest font-bold">+91 98765 43210</p>
+                            </motion.div>
                             <div className="pt-8">
-                                <button className="w-full py-5 border border-white/10 hover:bg-white hover:text-black transition-all duration-700 text-[10px] tracking-[0.5em] uppercase font-bold rounded-full">
+                                <motion.button
+                                    whileHover={{ scale: 1.05, backgroundColor: "#A78BFA", color: "#000", borderColor: "#A78BFA" }}
+                                    whileTap={{ scale: 0.95 }}
+                                    className="w-full py-6 border border-[#A78BFA]/30 bg-[#A78BFA]/5 text-white transition-all duration-700 text-xs tracking-[0.6em] uppercase font-black rounded-full shadow-3xl"
+                                >
                                     Join Artist Network
-                                </button>
+                                </motion.button>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div className="pt-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-8 opacity-20 text-[9px] tracking-[0.4em] uppercase font-bold">
+                <div className="pt-12 border-t border-[#A78BFA]/20 flex flex-col md:flex-row justify-between items-center gap-8 text-[10px] tracking-[0.5em] uppercase font-black text-[#A78BFA] opacity-60 text-center md:text-left">
                     <div>© 2026 MEDAI PERFORMANCE SPACES</div>
-                    <div className="flex gap-12">
-                        <span className="hover:opacity-100 cursor-pointer transition-opacity">Privacy</span>
-                        <span className="hover:opacity-100 cursor-pointer transition-opacity">Technical Rider</span>
-                        <span className="hover:opacity-100 cursor-pointer transition-opacity">Terms</span>
+                    <div className="flex flex-col md:flex-row gap-6 md:gap-12">
+                        {['Privacy', 'Technical Rider', 'Terms'].map(link => (
+                            <span key={link} className="hover:text-white cursor-pointer transition-colors underline-offset-4 decoration-[#A78BFA]/20">{link}</span>
+                        ))}
                     </div>
-                    <div className="opacity-40">Crafted for Excellence</div>
+                    <div className="opacity-80 italic text-[#A78BFA]/40">Crafted for Excellence</div>
                 </div>
             </div>
         </footer>

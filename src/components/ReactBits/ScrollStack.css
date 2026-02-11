@@ -1,0 +1,53 @@
+.scroll-stack-scroller {
+    position: relative;
+    width: 100%;
+    /* Disable internal scroll when using window scroll to prevent conflicts */
+    overflow: visible;
+    padding: 0;
+}
+
+.scroll-stack-inner {
+    position: relative;
+    width: 100%;
+    padding: 5vh 0 10vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.scroll-stack-card-container {
+    position: relative;
+    width: 100%;
+    max-width: 1200px;
+    /* Fixed height for stability */
+    height: 80vh;
+    margin: 0 auto;
+}
+
+.scroll-stack-card {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 40px;
+    background: #080808;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+
+    /* Performance & Stability */
+    will-change: transform;
+    transform-origin: top center;
+    backface-visibility: hidden;
+    transform-style: preserve-3d;
+
+    /* Clear any default transitions that might fight JS */
+    transition: filter 0.3s ease-out;
+}
+
+.scroll-stack-end {
+    width: 100%;
+    height: 1px;
+    visibility: hidden;
+}

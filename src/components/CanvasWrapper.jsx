@@ -6,41 +6,77 @@ import ParticleSystem from './ParticleSystem'
 import MicModel from './MicModel'
 import SceneBackground from './SceneBackground'
 import { EffectComposer, Bloom, Vignette, Noise } from '@react-three/postprocessing'
+import { BlendFunction } from 'postprocessing'
 
-export default function CanvasWrapper({ scrollProgress }) {
+// OPTIMIZATION: Check if we're on mobile for performance adjustments
+const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+
+export default function CanvasWrapper({ scrollProgressRef }) {
     return (
         <Canvas
             camera={{ position: [0, 0, 10], fov: 50 }}
-            gl={{ antialias: true, alpha: false }}
-            dpr={[1, 2]}
+            // OPTIMIZATION: Optimized GL settings for performance
+            gl={{
+                antialias: !isMobile, // Disable AA on mobile
+                alpha: false, // Opaque background is faster
+                powerPreference: 'high-performance',
+                stencil: false, // Not needed, saves memory
+                depth: true,
+            }}
+            // OPTIMIZATION: Clamp DPR to 1.5 max (was 2) to reduce pixel count
+            dpr={isMobile ? 1 : [1, 1.5]}
+            // OPTIMIZATION: Enable performance features
+            shadows={false} // Shadows disabled (not used in current scene)
+            flat // Disable tone mapping for better performance
+            linear // Use linear color space (faster)
+            frameloop="always"
+            // OPTIMIZATION: Enable frustum culling
+            onCreated={({ gl, scene }) => {
+                gl.setClearColor('#030303')
+                // Enable frustum culling for all objects
+                scene.traverse((obj) => {
+                    if (obj.isMesh) {
+                        obj.frustumCulled = true
+                    }
+                })
+            }}
         >
             <Suspense fallback={null}>
-                {/* Camera Control */}
-                <CameraRig scrollProgress={scrollProgress} />
+                {/* Camera Control - OPTIMIZATION: Now uses ref */}
+                <CameraRig scrollProgressRef={scrollProgressRef} />
 
                 {/* Dynamic Background */}
-                <SceneBackground scrollProgress={scrollProgress} />
+                <SceneBackground scrollProgressRef={scrollProgressRef} />
 
                 {/* Lighting */}
-                <StageLights scrollProgress={scrollProgress} />
+                <StageLights scrollProgressRef={scrollProgressRef} />
 
                 {/* 3D Elements */}
-                <ParticleSystem scrollProgress={scrollProgress} />
-                <MicModel scrollProgress={scrollProgress} />
+                <ParticleSystem scrollProgressRef={scrollProgressRef} />
+                <MicModel scrollProgressRef={scrollProgressRef} />
 
-                {/* Post-processing Effects */}
-                <EffectComposer>
+                {/* OPTIMIZATION: Reduced post-processing for better performance */}
+                <EffectComposer
+                    multisampling={0} // Disable MSAA (expensive)
+                    enabled={!isMobile} // Disable entirely on mobile
+                    // OPTIMIZATION: Reduce resolution to 80% for better performance
+                    resolutionScale={isMobile ? 0.5 : 0.8}
+                >
                     <Bloom
-                        intensity={0.5}
-                        luminanceThreshold={0.2}
+                        intensity={isMobile ? 0.4 : 0.8} // Increased from 0.5 for cinematic glow
+                        luminanceThreshold={0.2} // Restored sensitivity
                         luminanceSmoothing={0.9}
+                        mipmapBlur
+                        levels={isMobile ? 3 : 5}
                     />
                     <Vignette
                         offset={0.3}
-                        darkness={0.5}
+                        darkness={0.6} // Increased for depth
+                        blendFunction={BlendFunction.NORMAL}
                     />
                     <Noise
-                        opacity={0.02}
+                        opacity={0.03} // Increased from 0.01 for texture
+                        blendFunction={BlendFunction.OVERLAY}
                     />
                 </EffectComposer>
             </Suspense>

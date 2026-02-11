@@ -38,6 +38,47 @@ An award-winning, scroll-driven WebGL experience for a stand-up comedy show. Bui
 - **Tailwind CSS** - Utility-first styling
 - **GLSL Shaders** - Custom visual effects
 
+## 🎨 React Bits Components
+
+**NEW!** Premium animated UI components inspired by [React Bits](https://reactbits.dev)
+
+This project now includes 9 custom-built animated components:
+
+- **Text Animations**: AntigravityText, SplitText, TextType, ShuffleText, GradientText
+- **Scroll Effects**: ScrollFloat (parallax)
+- **Navigation**: BubbleMenu (floating menu)
+- **Backgrounds**: DarkVeil, LightRays
+
+### Quick Start with React Bits
+
+```jsx
+import { AntigravityText, GradientText, SplitText } from './components/ReactBits';
+
+<AntigravityText className="text-6xl font-bold">
+  <GradientText colors={['#667eea', '#764ba2']}>
+    Your Title
+  </GradientText>
+</AntigravityText>
+```
+
+### Documentation
+
+- 📖 **[QUICKSTART.md](./QUICKSTART.md)** - Get started in 3 steps
+- 📖 **[REACTBITS_GUIDE.md](./REACTBITS_GUIDE.md)** - Complete API documentation
+- 📖 **[INTEGRATION_EXAMPLES.md](./INTEGRATION_EXAMPLES.md)** - Real-world usage patterns
+- 📖 **[REACTBITS_SUMMARY.md](./REACTBITS_SUMMARY.md)** - Overview of all components
+- 📖 **[VISUAL_GUIDE.txt](./VISUAL_GUIDE.txt)** - Visual component reference
+
+### Demo
+
+View all components in action:
+```jsx
+import ReactBitsDemo from './components/ReactBitsDemo';
+// Temporarily render <ReactBitsDemo /> to see all components
+```
+
+---
+
 ## 🚀 Getting Started
 
 ### Installation
@@ -80,7 +121,19 @@ src/
 │   ├── MicModel.jsx           # 3D microphone model
 │   ├── SceneBackground.jsx    # GLSL shader backgrounds
 │   ├── MotionText.jsx         # Animated text component
-│   └── CTAButton.jsx          # Premium button component
+│   ├── CTAButton.jsx          # Premium button component
+│   ├── ReactBitsDemo.jsx      # Demo page for React Bits components
+│   └── ReactBits/             # 🆕 Premium animated components
+│       ├── AntigravityText.jsx
+│       ├── SplitText.jsx
+│       ├── TextType.jsx
+│       ├── ShuffleText.jsx
+│       ├── GradientText.jsx
+│       ├── ScrollFloat.jsx
+│       ├── BubbleMenu.jsx
+│       ├── DarkVeil.jsx
+│       ├── LightRays.jsx
+│       └── index.js
 ├── scenes/
 │   ├── ArrivalScene.jsx       # Scene 1: Hero section
 │   ├── StageScene.jsx         # Scene 2: Stage introduction
@@ -89,6 +142,8 @@ src/
 │   ├── DetailsScene.jsx       # Scene 5: Show details
 │   ├── GalleryScene.jsx       # Scene 6: Photo gallery
 │   └── FinaleScene.jsx        # Scene 7: Final CTA
+├── sections/
+│   └── EnhancedHero.jsx       # 🆕 Example React Bits integration
 ├── App.jsx                    # Main app with Lenis integration
 ├── main.jsx                   # React entry point
 └── index.css                  # Global styles & animations
