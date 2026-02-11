@@ -1,4 +1,8 @@
 import { motion } from 'framer-motion'
+import { Canvas } from '@react-three/fiber'
+import { Suspense } from 'react'
+import SoundWave from '../components/ThreeD/SoundWave'
+import AudienceSeats from '../components/ThreeD/AudienceSeats'
 
 export default function Features() {
     const items = [
@@ -9,7 +13,21 @@ export default function Features() {
 
     return (
         <section className="min-h-screen flex flex-col justify-center relative py-32 px-6 overflow-hidden">
-            <div className="container mx-auto">
+            {/* 3D Background Visualization */}
+            <div className="absolute inset-0 z-0 pointer-events-none opacity-20">
+                <Canvas camera={{ position: [0, 5, 20], fov: 50 }}>
+                    <ambientLight intensity={0.4} />
+                    <pointLight position={[10, 10, 10]} intensity={1} />
+                    <Suspense fallback={null}>
+                        <SoundWave position={[-8, 0, 0]} color="#FFD700" />
+                        <SoundWave position={[0, 0, -5]} color="#A78BFA" />
+                        <SoundWave position={[8, 0, 0]} color="#FF69B4" />
+                        <AudienceSeats position={[0, -8, 5]} rows={3} seatsPerRow={6} />
+                    </Suspense>
+                </Canvas>
+            </div>
+
+            <div className="container mx-auto relative z-10">
                 <motion.span
                     initial={{ opacity: 0, x: -20 }}
                     whileInView={{ opacity: 1, x: 0 }}

@@ -27,14 +27,51 @@ export default function NeuralPulse() {
                 className="absolute inset-20 bg-gradient-to-br from-[#A78BFA] to-purple-900 rounded-full blur-2xl opacity-30"
             />
 
-            {/* Central Core Content */}
-            <div className="relative z-10 flex flex-col items-center">
+            {/* Central Stage Content */}
+            <div className="relative z-10 flex flex-col items-center gap-4">
+                {/* Microphone Icon */}
                 <motion.div
-                    animate={{ y: [0, -10, 0] }}
-                    transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                    className="text-6xl md:text-8xl font-black tracking-tighter text-white/10 select-none"
+                    animate={{
+                        y: [0, -10, 0],
+                        rotate: [0, 5, 0, -5, 0]
+                    }}
+                    transition={{
+                        y: { duration: 4, repeat: Infinity, ease: "easeInOut" },
+                        rotate: { duration: 6, repeat: Infinity, ease: "easeInOut" }
+                    }}
+                    className="relative"
                 >
-                    CORE
+                    {/* Mic Stand */}
+                    <div className="w-1 h-24 bg-gradient-to-b from-white/40 to-white/10 mx-auto mb-2" />
+
+                    {/* Mic Head */}
+                    <div className="w-16 h-20 bg-gradient-to-br from-[#A78BFA] to-purple-900 rounded-full relative mx-auto shadow-2xl shadow-purple-500/50">
+                        {/* Mic Grill Lines */}
+                        <div className="absolute inset-2 flex flex-col justify-center gap-1">
+                            {[...Array(8)].map((_, i) => (
+                                <div key={i} className="h-px bg-white/20" />
+                            ))}
+                        </div>
+
+                        {/* Glow Effect */}
+                        <motion.div
+                            animate={{ opacity: [0.3, 0.8, 0.3] }}
+                            transition={{ duration: 2, repeat: Infinity }}
+                            className="absolute inset-0 bg-[#A78BFA] rounded-full blur-xl"
+                        />
+                    </div>
+                </motion.div>
+
+                {/* LIVE Text */}
+                <motion.div
+                    animate={{
+                        opacity: [0.3, 1, 0.3],
+                        scale: [0.95, 1.05, 0.95]
+                    }}
+                    transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                    className="text-4xl md:text-6xl font-black tracking-tighter text-white/20 select-none"
+                >
+                    LIVE
                 </motion.div>
 
                 {/* Floating "Data Nodes" */}

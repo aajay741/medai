@@ -7,6 +7,7 @@ import CanvasWrapper from './components/CanvasWrapper'
 import Booking from './pages/Booking'
 import Header from './components/Header'
 import CustomCursor from './components/CustomCursor'
+import GlobalSpotlights from './components/GlobalSpotlights'
 
 // Page components
 import Home from './pages/Home'
@@ -15,6 +16,9 @@ import SpacesPage from './pages/SpacesPage'
 import ExperiencePage from './pages/ExperiencePage'
 import GalleryPage from './pages/GalleryPage'
 import ContactPage from './pages/ContactPage'
+import AdminLogin from './pages/AdminLogin'
+import AdminDashboard from './pages/AdminDashboard'
+import AdminEvents from './pages/AdminEvents'
 
 export default function App() {
     const location = useLocation()
@@ -117,6 +121,9 @@ export default function App() {
                 <CanvasWrapper scrollProgressRef={scrollProgressRef} />
             </div>
 
+            {/* Global Spotlights - Follow Scroll on All Pages */}
+            <GlobalSpotlights />
+
             {/* Persistent Branded Header */}
             <Header onBookClick={() => handleOpenBooking()} />
 
@@ -129,6 +136,9 @@ export default function App() {
                     <Route path="/experience" element={<ExperiencePage />} />
                     <Route path="/gallery" element={<GalleryPage />} />
                     <Route path="/contact" element={<ContactPage />} />
+                    <Route path="/admin/login" element={<AdminLogin />} />
+                    <Route path="/admin/dashboard" element={<AdminDashboard />} />
+                    <Route path="/admin/events" element={<AdminEvents />} />
                 </Routes>
             </div>
 

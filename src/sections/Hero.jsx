@@ -1,7 +1,11 @@
-import { useRef } from 'react'
+import { useRef, Suspense } from 'react'
 import { motion, useScroll, useTransform } from 'framer-motion'
 import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
+import { Canvas } from '@react-three/fiber'
+import StageLight from '../components/ThreeD/StageLight'
+import Curtain from '../components/ThreeD/Curtain'
+import SoundWave from '../components/ThreeD/SoundWave'
 
 const AnimatedTitle = ({ children, className }) => {
     const containerRef = useRef()
@@ -53,8 +57,23 @@ export default function Hero({ onBookClick }) {
 
     return (
         <section ref={container} className="min-h-[100vh] flex flex-col items-center justify-center relative section-container overflow-hidden perspective-1000 py-24 md:py-40">
+            {/* 3D Theatrical Background */}
+            <div className="absolute inset-0 z-0 pointer-events-none opacity-30">
+                <Canvas camera={{ position: [0, 0, 30], fov: 50 }}>
+                    <ambientLight intensity={0.3} />
+                    <Suspense fallback={null}>
+                        <StageLight position={[-15, 8, -10]} color="#FFD700" intensity={1.5} />
+                        <StageLight position={[15, 8, -10]} color="#FF69B4" intensity={1.5} />
+                        <StageLight position={[0, 12, -15]} color="#A78BFA" intensity={2} />
+                        <Curtain position={[0, 0, -20]} open={false} />
+                        <SoundWave position={[0, -5, -5]} color="#A78BFA" />
+                    </Suspense>
+                </Canvas>
+            </div>
+
             {/* Ambient Purple Depth Layer */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[60vw] h-[60vh] bg-[#A78BFA]/[0.03] blur-[160px] rounded-full pointer-events-none z-0" />
+
 
             <motion.div
                 style={{

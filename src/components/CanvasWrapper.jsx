@@ -5,6 +5,8 @@ import StageLights from './StageLights'
 import ParticleSystem from './ParticleSystem'
 import MicModel from './MicModel'
 import SceneBackground from './SceneBackground'
+import AmbientDust from './ThreeD/AmbientDust'
+import GlowPlane from './ThreeD/GlowPlane'
 import { EffectComposer, Bloom, Vignette, Noise } from '@react-three/postprocessing'
 import { BlendFunction } from 'postprocessing'
 
@@ -50,6 +52,11 @@ export default function CanvasWrapper({ scrollProgressRef }) {
 
                 {/* Lighting */}
                 <StageLights scrollProgressRef={scrollProgressRef} />
+
+                {/* Atmostphere & Depth */}
+                <AmbientDust count={isMobile ? 100 : 300} />
+                <GlowPlane position={[0, 0, -50]} scale={[100, 100, 1]} color="#A78BFA" opacity={0.02} />
+                <GlowPlane position={[20, 20, -30]} scale={[50, 50, 1]} color="#ffffff" opacity={0.01} />
 
                 {/* 3D Elements */}
                 <ParticleSystem scrollProgressRef={scrollProgressRef} />

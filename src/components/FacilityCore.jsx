@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { Box, MeshDistortMaterial, Float, BoxReveal, Octahedron } from '@react-three/drei'
+import { MeshDistortMaterial, Float, Octahedron } from '@react-three/drei'
 
 function Core() {
     const meshRef = useRef()

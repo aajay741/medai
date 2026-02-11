@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
+import LightBeam from './ThreeD/LightBeam'
 
 export default function StageLights({ scrollProgressRef }) {
     const mainLight = useRef()
@@ -47,6 +48,12 @@ export default function StageLights({ scrollProgressRef }) {
                 intensity={2.5}
                 color="#ffffff"
             />
+
+            {/* Volumetric Stage Beams */}
+            <group position={[0, -scrollProgressRef.current * 320, 0]}>
+                <LightBeam position={[-8, 15, -10]} length={40} color="#A78BFA" opacity={0.08} />
+                <LightBeam position={[8, 15, -10]} length={40} color="#ffffff" opacity={0.06} />
+            </group>
 
             {/* RESTORATION: Added a follower light to ensure scroll targets are illuminated */}
             <pointLight
