@@ -7,21 +7,18 @@ export default function Venues({ onBookClick }) {
         {
             city: "CHENNAI",
             capacity: "120 Seater",
-            type: "Intimate black box",
             description: "Theatre, classical dance, contemporary acts, indie music, stand-up",
             image: "https://images.unsplash.com/photo-1513106580091-1d82408b8cd6?q=80&w=2070"
         },
         {
             city: "BENGALURU",
             capacity: "170 Seater",
-            type: "Flexible mid-scale",
             description: "Festivals, comedy, concerts, indie bands, experimental showcases",
             image: "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=2070"
         },
         {
             city: "COIMBATORE",
             capacity: "220 Seater",
-            type: "Spacious modern venue",
             description: "Large dance shows, theatre, cultural programs, live music concerts",
             image: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=2070"
         }
@@ -98,19 +95,11 @@ function VenueCard({ venue, index, onBookClick }) {
                             MEDAI <br /><span className="text-[#A78BFA]/90 italic">{venue.city}</span>
                         </h3>
                     </motion.div>
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.5 }}
-                        whileInView={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: 0.7 + index * 0.1 }}
-                        className="flex flex-col items-end gap-2 px-4 py-2 rounded-2xl bg-black/60 backdrop-blur-xl border border-white/10"
-                    >
-                        <div className="w-2.5 h-2.5 rounded-full bg-[#A78BFA] shadow-[0_0_20px_#A78BFA] animate-pulse" />
-                        <span className="text-[8px] tracking-[0.5em] text-[#A78BFA] uppercase font-black">Live Scene</span>
-                    </motion.div>
+
                 </div>
 
                 <div className="space-y-10 group-hover:translate-y-[-10px] transition-transform duration-700 ease-[0.16,1,0.3,1]">
-                    <div className="grid grid-cols-2 gap-10">
+                    <div className="flex gap-10">
                         <motion.div
                             initial={{ opacity: 0, y: 20 }}
                             whileInView={{ opacity: 1, y: 0 }}
@@ -118,14 +107,6 @@ function VenueCard({ venue, index, onBookClick }) {
                         >
                             <div className="text-[10px] uppercase tracking-[0.5em] mb-3 font-black text-[#A78BFA]">Audience</div>
                             <div className="text-base font-black tracking-tight text-white">{venue.capacity}</div>
-                        </motion.div>
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.9 + index * 0.1 }}
-                        >
-                            <div className="text-[10px] uppercase tracking-[0.5em] mb-3 font-black text-[#A78BFA]">Structure</div>
-                            <div className="text-base font-black tracking-tight text-white">{venue.type}</div>
                         </motion.div>
                     </div>
 

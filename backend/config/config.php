@@ -1,14 +1,14 @@
 <?php
 // Database Configuration
 define('DB_HOST', 'localhost');
-define('DB_NAME', 'medai_bookings');
-define('DB_USER', 'root'); // Change this to your MySQL username
-define('DB_PASS', ''); // Change this to your MySQL password
+define('DB_NAME', 'u891495087_medai');
+define('DB_USER', 'u891495087_medai');
+define('DB_PASS', 'Medai123@');
 define('DB_CHARSET', 'utf8mb4');
 
 // Application Configuration
 define('APP_NAME', 'MEDAI Admin Panel');
-define('APP_URL', 'http://localhost/medai');
+define('APP_URL', 'https://darkturquoise-magpie-724295.hostingersite.com');
 define('ADMIN_EMAIL', 'admin@medai.in');
 
 // Security
@@ -19,7 +19,9 @@ define('SESSION_LIFETIME', 3600); // 1 hour in seconds
 define('ALLOWED_ORIGINS', [
     'http://localhost:5173',
     'http://localhost:3000',
-    'http://localhost:5174'
+    'http://localhost:5174',
+    'https://darkturquoise-magpie-724295.hostingersite.com',
+    'http://darkturquoise-magpie-724295.hostingersite.com'
 ]);
 
 // Timezone

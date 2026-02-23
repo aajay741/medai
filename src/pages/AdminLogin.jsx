@@ -15,7 +15,7 @@ export default function AdminLogin() {
         setLoading(true)
 
         try {
-            const response = await fetch('http://localhost/medai/backend/api/auth.php', {
+            const response = await fetch('/backend/api/auth.php', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

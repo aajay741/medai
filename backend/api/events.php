@@ -26,10 +26,22 @@ try {
             
             sendResponse(true, $event);
         } else {
-            // Get all events with filters
-            $where = ['is_active = 1']; // Only active events by default
+            // Base condition
+            $where = ['is_active = 1']; 
             $params = [];
             
+            // If admin=1 is NOT passed, we only show public upcoming events
+            // If admin=1 IS passed, we still show is_active=1 but include all statuses
+            
+            if (!empty($_GET['admin'])) {
+                // Admin sees all is_active=1 events (Upcoming, Ongoing, Completed, etc.)
+                // No changes needed to $where as is_active=1 is already there
+            } else {
+                // Public only see upcoming active events
+                $where[] = "status = 'upcoming'";
+                $where[] = "event_date >= CURDATE()";
+            }
+
             if (!empty($_GET['location'])) {
                 $where[] = "location = ?";
                 $params[] = $_GET['location'];
@@ -42,16 +54,6 @@ try {
             
             if (!empty($_GET['featured'])) {
                 $where[] = "featured = 1";
-            }
-            
-            if (!empty($_GET['upcoming'])) {
-                $where[] = "event_date >= CURDATE()";
-                $where[] = "status = 'upcoming'";
-            }
-            
-            // Admin can see all events
-            if (!empty($_GET['admin'])) {
-                $where = []; // Remove active filter for admin
             }
             
             $whereClause = !empty($where) ? 'WHERE ' . implode(' AND ', $where) : '';
@@ -165,15 +167,15 @@ try {
         sendResponse(true, null, 'Event updated successfully');
         
     } elseif ($method === 'DELETE') {
-        // Soft delete event (set is_active = 0)
+        // Hard delete event
         $id = $_GET['id'] ?? null;
         
         if (!$id) {
             sendResponse(false, null, 'Event ID is required', 400);
         }
         
-        // Soft delete instead of hard delete
-        $stmt = $db->prepare("UPDATE events SET is_active = 0 WHERE id = ?");
+        // Use hard delete to avoid confusion with soft delete column visibility
+        $stmt = $db->prepare("DELETE FROM events WHERE id = ?");
         $stmt->execute([$id]);
         
         sendResponse(true, null, 'Event deleted successfully');

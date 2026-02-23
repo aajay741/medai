@@ -7,6 +7,7 @@ export default function AdminEvents() {
     const [loading, setLoading] = useState(true)
     const [showModal, setShowModal] = useState(false)
     const [editingEvent, setEditingEvent] = useState(null)
+    const [uploading, setUploading] = useState(false)
     const navigate = useNavigate()
 
     const [formData, setFormData] = useState({
@@ -41,7 +42,7 @@ export default function AdminEvents() {
     const fetchEvents = async () => {
         setLoading(true)
         try {
-            const response = await fetch('http://localhost/medai/backend/api/events.php?admin=1')
+            const response = await fetch('/backend/api/events.php?admin=1')
             const data = await response.json()
             if (data.success) {
                 setEvents(data.data)
@@ -53,11 +54,38 @@ export default function AdminEvents() {
         }
     }
 
+    const handleFileUpload = async (e) => {
+        const file = e.target.files[0]
+        if (!file) return
+
+        setUploading(true)
+        const formDataUpload = new FormData()
+        formDataUpload.append('file', file)
+
+        try {
+            const response = await fetch('/backend/api/upload.php', {
+                method: 'POST',
+                body: formDataUpload
+            })
+            const data = await response.json()
+            if (data.success) {
+                setFormData(prev => ({ ...prev, image_url: data.data.url }))
+            } else {
+                alert(data.message)
+            }
+        } catch (err) {
+            console.error('Error uploading file:', err)
+            alert('Upload failed')
+        } finally {
+            setUploading(false)
+        }
+    }
+
     const handleSubmit = async (e) => {
         e.preventDefault()
 
         try {
-            const url = 'http://localhost/medai/backend/api/events.php'
+            const url = '/backend/api/events.php'
             const method = editingEvent ? 'PUT' : 'POST'
             const payload = editingEvent ? { ...formData, id: editingEvent.id } : formData
 
@@ -104,7 +132,7 @@ export default function AdminEvents() {
         if (!confirm('Are you sure you want to delete this event?')) return
 
         try {
-            const response = await fetch(`http://localhost/medai/backend/api/events.php?id=${id}`, {
+            const response = await fetch(`/backend/api/events.php?id=${id}`, {
                 method: 'DELETE'
             })
             const data = await response.json()
@@ -154,7 +182,7 @@ export default function AdminEvents() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-[#030303] via-[#0a0a0a] to-[#1a0a1a] p-6">
+        <div className="min-h-screen bg-gradient-to-br from-[#030303] via-[#0a0a0a] to-[#1a0a1a] pt-32 p-6">
             {/* Header */}
             <div className="max-w-7xl mx-auto mb-8">
                 <div className="flex justify-between items-center">
@@ -228,9 +256,9 @@ export default function AdminEvents() {
 
                                 <div className="flex items-center gap-2 mb-4">
                                     <span className={`px-3 py-1 rounded-full text-xs ${event.status === 'upcoming' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/50' :
-                                            event.status === 'ongoing' ? 'bg-green-500/20 text-green-400 border border-green-500/50' :
-                                                event.status === 'completed' ? 'bg-gray-500/20 text-gray-400 border border-gray-500/50' :
-                                                    'bg-red-500/20 text-red-400 border border-red-500/50'
+                                        event.status === 'ongoing' ? 'bg-green-500/20 text-green-400 border border-green-500/50' :
+                                            event.status === 'completed' ? 'bg-gray-500/20 text-gray-400 border border-gray-500/50' :
+                                                'bg-red-500/20 text-red-400 border border-red-500/50'
                                         }`}>
                                         {event.status}
                                     </span>
@@ -263,15 +291,30 @@ export default function AdminEvents() {
 
             {/* Modal */}
             {showModal && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-6 overflow-y-auto">
+                <div
+                    className="fixed inset-0 bg-black/90 backdrop-blur-md z-[9999] overflow-y-auto flex items-start justify-center p-4 md:p-10"
+                    data-lenis-prevent
+                >
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-8 max-w-4xl w-full my-8"
+                        initial={{ opacity: 0, y: 100 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-6 md:p-10 max-w-4xl w-full my-10 shadow-[0_0_50px_rgba(0,0,0,0.5)] relative"
                     >
-                        <h2 className="text-3xl font-black text-white mb-6">
-                            {editingEvent ? 'Edit Event' : 'Create New Event'}
-                        </h2>
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-3xl font-black text-white">
+                                {editingEvent ? 'Edit Event' : 'Create New Event'}
+                            </h2>
+                            <button
+                                onClick={() => {
+                                    setShowModal(false)
+                                    setEditingEvent(null)
+                                    resetForm()
+                                }}
+                                className="text-white/40 hover:text-white text-2xl"
+                            >
+                                ×
+                            </button>
+                        </div>
 
                         <form onSubmit={handleSubmit} className="space-y-6">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -291,12 +334,12 @@ export default function AdminEvents() {
                                     <select
                                         value={formData.location}
                                         onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                                        className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#A78BFA]"
+                                        className="w-full bg-[#1a1a1a] border border-white/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#A78BFA] appearance-none"
                                         required
                                     >
-                                        <option value="Chennai">Chennai</option>
-                                        <option value="Bengaluru">Bengaluru</option>
-                                        <option value="Coimbatore">Coimbatore</option>
+                                        <option value="Chennai" className="bg-[#1a1a1a]">Chennai</option>
+                                        <option value="Bengaluru" className="bg-[#1a1a1a]">Bengaluru</option>
+                                        <option value="Coimbatore" className="bg-[#1a1a1a]">Coimbatore</option>
                                     </select>
                                 </div>
 
@@ -318,6 +361,35 @@ export default function AdminEvents() {
                                         onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                                         className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#A78BFA]"
                                     />
+                                </div>
+
+                                <div className="md:col-span-2">
+                                    <label className="block text-white/70 text-sm mb-2">Event Image</label>
+                                    <div className={`relative h-40 rounded-xl border-2 border-dashed transition-all flex flex-col items-center justify-center p-4 text-center ${formData.image_url ? 'border-green-500/50 bg-green-500/5' : 'border-white/10 bg-white/5'}`}>
+                                        {formData.image_url ? (
+                                            <>
+                                                <img src={formData.image_url} alt="Preview" className="h-full w-full object-contain rounded-lg mb-2" />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setFormData({ ...formData, image_url: '' })}
+                                                    className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full text-xs"
+                                                >
+                                                    ×
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <div className="text-2xl mb-1">🖼️</div>
+                                                <p className="text-white/40 text-xs mb-2">{uploading ? 'Uploading...' : 'Click or Drag to upload image'}</p>
+                                                <input
+                                                    type="file"
+                                                    onChange={handleFileUpload}
+                                                    className="absolute inset-0 opacity-0 cursor-pointer"
+                                                    disabled={uploading}
+                                                />
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
 
                                 <div>
@@ -358,12 +430,12 @@ export default function AdminEvents() {
                                     <select
                                         value={formData.status}
                                         onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                                        className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#A78BFA]"
+                                        className="w-full bg-[#1a1a1a] border border-white/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#A78BFA] appearance-none"
                                     >
-                                        <option value="upcoming">Upcoming</option>
-                                        <option value="ongoing">Ongoing</option>
-                                        <option value="completed">Completed</option>
-                                        <option value="cancelled">Cancelled</option>
+                                        <option value="upcoming" className="bg-[#1a1a1a]">Upcoming</option>
+                                        <option value="ongoing" className="bg-[#1a1a1a]">Ongoing</option>
+                                        <option value="completed" className="bg-[#1a1a1a]">Completed</option>
+                                        <option value="cancelled" className="bg-[#1a1a1a]">Cancelled</option>
                                     </select>
                                 </div>
                             </div>

@@ -1,9 +1,6 @@
 -- MEDAI Ticket Booking Database Schema
--- Run this SQL to create the database and tables
+-- Run this SQL in your existing database
 
-CREATE DATABASE IF NOT EXISTS medai_bookings CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
-USE medai_bookings;
 
 -- Bookings Table
 CREATE TABLE IF NOT EXISTS bookings (

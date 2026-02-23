@@ -2,7 +2,30 @@ import React from 'react';
 import ScrollStack, { ScrollStackItem } from '../components/ReactBits/ScrollStack';
 
 export default function Gallery() {
-    const cards = [
+    const [dynamicCards, setDynamicCards] = React.useState([]);
+
+    React.useEffect(() => {
+        const fetchGallery = async () => {
+            try {
+                const response = await fetch('/backend/api/gallery.php');
+                const data = await response.json();
+                if (data.success && data.data.length > 0) {
+                    // Map gallery items to card format
+                    const mapped = data.data.map(img => ({
+                        title: img.title || img.category,
+                        desc: img.description || `Experience the essence of ${img.category} at MEDAI.`,
+                        imageUrl: img.image_url
+                    }));
+                    setDynamicCards(mapped);
+                }
+            } catch (err) {
+                console.error('Error loading gallery:', err);
+            }
+        };
+        fetchGallery();
+    }, []);
+
+    const defaultCards = [
         {
             title: "Live Theatre",
             desc: "Soul-stirring performances that bridge the gap between audience and actor. A space where every breath counts.",
@@ -20,6 +43,8 @@ export default function Gallery() {
         },
     ];
 
+    const cards = dynamicCards.length > 0 ? [...dynamicCards, ...defaultCards] : defaultCards;
+
     return (
         <section id="gallery" className="relative w-full bg-[#030303] py-20">
             <div className="max-w-7xl mx-auto px-6 mb-20 text-center">
@@ -34,11 +59,11 @@ export default function Gallery() {
                 stackPosition="15%"
                 itemStackDistance={10}
                 baseScale={0.88}
-                blurAmount={6}
+                blurAmount={2}
             >
                 {cards.map((card, i) => (
                     <ScrollStackItem key={i}>
-                        <div className="w-full h-full flex flex-col md:flex-row bg-[#080808]">
+                        <div className="w-full h-full flex flex-col md:flex-row bg-[#080808] group">
                             {/* Content Side */}
                             <div className="flex-[1.2] p-8 md:p-16 flex flex-col justify-center">
                                 <div className="flex items-center gap-4 mb-6">
@@ -71,7 +96,7 @@ export default function Gallery() {
                                 <img
                                     src={card.imageUrl}
                                     alt={card.title}
-                                    className="absolute inset-0 w-full h-full object-cover opacity-60 grayscale group-hover:grayscale-0 transition-all duration-1000"
+                                    className="absolute inset-0 w-full h-full object-cover opacity-80 grayscale group-hover:grayscale-0 transition-all duration-1000"
                                 />
                                 <div className="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-[#080808] via-transparent to-transparent opacity-60" />
                             </div>

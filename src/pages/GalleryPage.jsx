@@ -1,7 +1,7 @@
 import Gallery from '../sections/Gallery'
 import ArtistPerspective from '../sections/ArtistPerspective'
 import VisualArchive from '../sections/VisualArchive'
-import ArtistCollective from '../sections/ArtistCollective'
+import DomeGallerySection from '../sections/DomeGallerySection'
 import Footer from '../components/Footer'
 import { motion } from 'framer-motion'
 
@@ -20,10 +20,8 @@ export default function GalleryPage() {
                 <ArtistPerspective />
             </div>
             <div id="gallery-archive">
+                <DomeGallerySection />
                 <VisualArchive />
-            </div>
-            <div id="gallery-collective">
-                <ArtistCollective />
             </div>
             <Footer />
         </motion.div>

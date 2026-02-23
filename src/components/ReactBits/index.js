@@ -11,3 +11,4 @@ export { default as BubbleMenu } from './BubbleMenu';
 export { default as DarkVeil } from './DarkVeil';
 export { default as LightRays } from './LightRays';
 export { default as ScrollStack, ScrollStackItem } from './ScrollStack';
+export { default as DomeGallery } from './DomeGallery';

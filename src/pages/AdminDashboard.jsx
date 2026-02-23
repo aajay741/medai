@@ -24,7 +24,7 @@ export default function AdminDashboard() {
         }
 
         try {
-            const response = await fetch('http://localhost/medai/backend/api/auth.php', {
+            const response = await fetch('/backend/api/auth.php', {
                 credentials: 'include'
             })
             const data = await response.json()
@@ -38,7 +38,7 @@ export default function AdminDashboard() {
 
     const fetchDashboardData = async () => {
         try {
-            const response = await fetch('http://localhost/medai/backend/api/dashboard.php')
+            const response = await fetch('/backend/api/dashboard.php')
             const data = await response.json()
             if (data.success) {
                 setStats(data.data.statistics)
@@ -56,7 +56,7 @@ export default function AdminDashboard() {
                 limit: 20,
                 ...filter
             })
-            const response = await fetch(`http://localhost/medai/backend/api/bookings.php?${params}`)
+            const response = await fetch(`/backend/api/bookings.php?${params}`)
             const data = await response.json()
             if (data.success) {
                 setBookings(data.data.bookings)
@@ -69,7 +69,7 @@ export default function AdminDashboard() {
     }
 
     const handleLogout = async () => {
-        await fetch('http://localhost/medai/backend/api/auth.php', {
+        await fetch('/backend/api/auth.php', {
             method: 'DELETE',
             credentials: 'include'
         })
@@ -80,7 +80,7 @@ export default function AdminDashboard() {
 
     const updateBookingStatus = async (id, status) => {
         try {
-            const response = await fetch('http://localhost/medai/backend/api/bookings.php', {
+            const response = await fetch('/backend/api/bookings.php', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id, status })
@@ -98,7 +98,7 @@ export default function AdminDashboard() {
         if (!confirm('Are you sure you want to delete this booking?')) return
 
         try {
-            const response = await fetch(`http://localhost/medai/backend/api/bookings.php?id=${id}`, {
+            const response = await fetch(`/backend/api/bookings.php?id=${id}`, {
                 method: 'DELETE'
             })
             const data = await response.json()
@@ -122,7 +122,7 @@ export default function AdminDashboard() {
     )
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-[#030303] via-[#0a0a0a] to-[#1a0a1a] p-6">
+        <div className="min-h-screen bg-gradient-to-br from-[#030303] via-[#0a0a0a] to-[#1a0a1a] pt-32 p-6">
             {/* Header */}
             <div className="max-w-7xl mx-auto mb-8">
                 <div className="flex justify-between items-center">
@@ -130,12 +130,26 @@ export default function AdminDashboard() {
                         <h1 className="text-4xl font-black text-white mb-2">MEDAI Admin</h1>
                         <p className="text-[#A78BFA]">Booking Management Dashboard</p>
                     </div>
-                    <button
-                        onClick={handleLogout}
-                        className="px-6 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg border border-red-500/50 transition-all"
-                    >
-                        Logout
-                    </button>
+                    <div className="flex gap-4">
+                        <button
+                            onClick={() => navigate('/admin/events')}
+                            className="px-6 py-2 bg-[#A78BFA]/10 hover:bg-[#A78BFA]/20 text-[#A78BFA] rounded-lg border border-[#A78BFA]/50 transition-all font-bold"
+                        >
+                            Manage Events
+                        </button>
+                        <button
+                            onClick={() => navigate('/admin/gallery')}
+                            className="px-6 py-2 bg-[#A78BFA]/10 hover:bg-[#A78BFA]/20 text-[#A78BFA] rounded-lg border border-[#A78BFA]/50 transition-all font-bold"
+                        >
+                            Manage Gallery
+                        </button>
+                        <button
+                            onClick={handleLogout}
+                            className="px-6 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg border border-red-500/50 transition-all"
+                        >
+                            Logout
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -230,10 +244,10 @@ export default function AdminDashboard() {
                                                     value={booking.booking_status}
                                                     onChange={(e) => updateBookingStatus(booking.id, e.target.value)}
                                                     className={`text-xs px-3 py-1 rounded-full border ${booking.booking_status === 'confirmed'
-                                                            ? 'bg-green-500/20 border-green-500/50 text-green-400'
-                                                            : booking.booking_status === 'pending'
-                                                                ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-400'
-                                                                : 'bg-red-500/20 border-red-500/50 text-red-400'
+                                                        ? 'bg-green-500/20 border-green-500/50 text-green-400'
+                                                        : booking.booking_status === 'pending'
+                                                            ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-400'
+                                                            : 'bg-red-500/20 border-red-500/50 text-red-400'
                                                         }`}
                                                 >
                                                     <option value="confirmed">Confirmed</option>

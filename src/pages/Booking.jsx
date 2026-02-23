@@ -28,10 +28,76 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
             }, 250);
         }
     }, [step])
+    const [allEvents, setAllEvents] = useState([])
+    const [isLoadingEvents, setIsLoadingEvents] = useState(false)
+
+    useEffect(() => {
+        const fetchEvents = async () => {
+            setIsLoadingEvents(true)
+            try {
+                const response = await fetch('/backend/api/events.php')
+                const data = await response.json()
+                if (data.success) {
+                    setAllEvents(data.data)
+                }
+            } catch (err) {
+                console.error('Error fetching events:', err)
+            } finally {
+                setIsLoadingEvents(false)
+            }
+        }
+        if (isOpen) fetchEvents()
+    }, [isOpen])
+
+    const locations = Array.from(new Set(allEvents.map(e => e.location))).map(loc => {
+        const event = allEvents.find(e => e.location === loc)
+        return {
+            id: loc.toLowerCase().replace(/\s+/g, '-'),
+            name: loc.toUpperCase(),
+            venue: event.venue_name || 'MEDAI Space'
+        }
+    })
+
+    const shows = Array.from(new Set(allEvents
+        .filter(e => e.location.toUpperCase() === bookingData.location.toUpperCase())
+        .map(e => e.title)
+    )).map((title, i) => {
+        const event = allEvents.find(e => e.title === title && e.location.toUpperCase() === bookingData.location.toUpperCase())
+        const minPrice = event.ticket_types ? Math.min(...event.ticket_types.map(t => parseInt(t.price))) : 499
+        return { id: `s${i}`, title: title, price: `₹${minPrice}` }
+    })
+
+    const dates = Array.from(new Set(allEvents
+        .filter(e =>
+            e.location.toUpperCase() === bookingData.location.toUpperCase() &&
+            e.title === bookingData.show
+        )
+        .map(e => e.event_date)
+    )).map(dateStr => {
+        const d = new Date(dateStr)
+        const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
+        const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
+        return {
+            day: days[d.getDay()],
+            num: d.getDate().toString(),
+            month: months[d.getMonth()],
+            full: dateStr
+        }
+    })
+
+    const times = allEvents
+        .filter(e =>
+            e.location.toUpperCase() === bookingData.location.toUpperCase() &&
+            e.title === bookingData.show &&
+            e.event_date === bookingData.date_full
+        )
+        .map(e => e.event_time)
+
     const [bookingData, setBookingData] = useState({
         location: '',
         show: '',
         date: '',
+        date_full: '',
         time: '',
         tickets: 1,
         name: '',
@@ -44,35 +110,14 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
     useEffect(() => {
         if (isOpen) {
             if (initialLocation) {
-                setBookingData(prev => ({ ...prev, location: initialLocation, show: '' }))
+                setBookingData(prev => ({ ...prev, location: initialLocation, show: '', date: '', date_full: '', time: '' }))
                 setStep(2)
             } else {
-                setBookingData(prev => ({ ...prev, location: '', show: '' }))
+                setBookingData(prev => ({ ...prev, location: '', show: '', date: '', date_full: '', time: '' }))
                 setStep(1)
             }
         }
     }, [isOpen, initialLocation])
-
-    const locations = [
-        { id: 'chennai', name: 'CHENNAI', venue: 'Alwarpet Black Box' },
-        { id: 'bengaluru', name: 'BENGALURU', venue: 'Koramangala Studio' },
-        { id: 'coimbatore', name: 'COIMBATORE', venue: 'Race Course Hub' }
-    ]
-
-    const shows = [
-        { id: 's1', title: 'Soul-Stirring Theatre', price: '₹499' },
-        { id: 's2', title: 'Indie Resonance', price: '₹799' },
-        { id: 's3', title: 'Classical Flow', price: '₹599' }
-    ]
-
-    const times = ['18:15', '19:00', '20:30', '21:45']
-    const dates = [
-        { day: 'MON', num: '12', month: 'FEB' },
-        { day: 'TUE', num: '13', month: 'FEB' },
-        { day: 'WED', num: '14', month: 'FEB' },
-        { day: 'THU', num: '15', month: 'FEB' },
-        { day: 'FRI', num: '16', month: 'FEB' }
-    ]
 
     const nextStep = () => {
         if (step === 4) {
@@ -147,6 +192,7 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[200] bg-[#030303]/90 flex items-center justify-center p-4 md:p-10 backdrop-blur-3xl overflow-y-auto"
+            data-lenis-prevent
         >
             {/* Cinematic 3D Depth Elements */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -266,7 +312,7 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                             className={`w-full p-6 rounded-[2rem] border text-left transition-all duration-700 flex items-center justify-between group ${bookingData.show === show.title ? 'bg-[#A78BFA] border-[#A78BFA] text-black' : 'bg-white/5 border-white/5 hover:border-[#A78BFA]/30'}`}
                                         >
                                             <div className="flex flex-col">
-                                                <span className={`text-[9px] font-black tracking-[0.4em] uppercase mb-1 ${bookingData.show === window.title ? 'text-black/40' : 'text-[#A78BFA]'}`}>Program</span>
+                                                <span className={`text-[9px] font-black tracking-[0.4em] uppercase mb-1 ${bookingData.show === show.title ? 'text-black/40' : 'text-[#A78BFA]'}`}>Program</span>
                                                 <div className="text-xl font-black uppercase tracking-tighter">{show.title}</div>
                                             </div>
                                             <div className="text-xl font-black italic">{show.price}</div>
@@ -301,7 +347,7 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                         {dates.map((d, i) => (
                                             <button
                                                 key={i}
-                                                onClick={() => setBookingData(prev => ({ ...prev, date: `${d.num} ${d.month}` }))}
+                                                onClick={() => setBookingData(prev => ({ ...prev, date: `${d.num} ${d.month}`, date_full: d.full }))}
                                                 className={`flex-shrink-0 w-20 p-5 rounded-[1.5rem] border transition-all duration-700 flex flex-col items-center ${bookingData.date === `${d.num} ${d.month}` ? 'bg-[#A78BFA] border-[#A78BFA] text-black' : 'bg-white/5 border-white/5 hover:border-[#A78BFA]/30'}`}
                                             >
                                                 <span className="text-[8px] font-black tracking-widest opacity-60 mb-1">{d.month}</span>

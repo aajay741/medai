@@ -1,5 +1,4 @@
 import Experience from '../sections/Experience'
-import Voices from '../sections/Voices'
 import ShowProcess from '../sections/ShowProcess'
 import CreativeRoadmap from '../sections/CreativeRoadmap'
 import Footer from '../components/Footer'
@@ -21,9 +20,6 @@ export default function ExperiencePage() {
             </div>
             <div id="experience-roadmap">
                 <CreativeRoadmap />
-            </div>
-            <div id="experience-voices">
-                <Voices />
             </div>
             <Footer />
         </motion.div>

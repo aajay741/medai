@@ -1,4 +1,6 @@
 <?php
+ini_set('session.cookie_samesite', 'None');
+ini_set('session.cookie_secure', 'True');
 require_once '../config/config.php';
 
 setCorsHeaders();

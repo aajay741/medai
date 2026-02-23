@@ -13,8 +13,13 @@ export default function Header({ onBookClick }) {
         { label: 'Spaces', path: '/spaces' },
         { label: 'Experience', path: '/experience' },
         { label: 'Gallery', path: '/gallery' },
+        { label: 'Locations', path: '/locations' },
         { label: 'Contact', path: '/contact' }
     ]
+
+    const scrollToTop = () => {
+        window.dispatchEvent(new CustomEvent('scroll-to-top'));
+    };
 
     return (
         <>
@@ -30,12 +35,15 @@ export default function Header({ onBookClick }) {
                 {/* Anchoring Horizon Line (Visual Depth) */}
                 <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-b from-black/80 via-black/20 to-transparent pointer-events-none" />
 
-                <div className="relative max-w-[1920px] mx-auto px-6 md:px-16 lg:px-24 h-20 md:h-32 flex justify-between items-center group/header">
+                <div className="relative max-w-[1920px] mx-auto px-6 md:px-16 lg:px-24 h-16 md:h-24 flex justify-between items-center group/header">
                     {/* Brand Identity - Anchored Left */}
                     <Link
                         to="/"
                         className="flex flex-col gap-1 pointer-events-auto cursor-pointer group/brand z-[102]"
-                        onClick={() => isMenuOpen && setIsMenuOpen(false)}
+                        onClick={() => {
+                            isMenuOpen && setIsMenuOpen(false);
+                            scrollToTop();
+                        }}
                     >
                         <div className="flex items-center gap-4 md:gap-6">
                             <span className="text-[16px] md:text-[22px] font-black tracking-[0.8em] md:tracking-[1em] text-white uppercase transition-all duration-700 group-hover/brand:tracking-[1.1em] group-hover/brand:text-[#A78BFA]">
@@ -45,7 +53,7 @@ export default function Header({ onBookClick }) {
                         </div>
                         <div className="flex items-center gap-3 ml-1">
                             <span className="text-[8px] md:text-[9px] font-black tracking-[0.5em] text-[#A78BFA] uppercase opacity-80">
-                                Performance Network
+                                The Stage
                             </span>
                         </div>
                     </Link>
@@ -58,6 +66,7 @@ export default function Header({ onBookClick }) {
                                 <Link
                                     key={item.path}
                                     to={item.path}
+                                    onClick={scrollToTop}
                                     className="group/nav relative py-2"
                                 >
                                     <span className={`text-[10px] font-black tracking-[0.4em] uppercase transition-all duration-500 ${location.pathname === item.path ? 'text-[#A78BFA] tracking-[0.6em]' : 'text-white/60 group-hover/nav:text-white group-hover/nav:tracking-[0.6em]'}`}>
@@ -99,7 +108,7 @@ export default function Header({ onBookClick }) {
                             onClick={onBookClick}
                             className="hidden md:block glass border border-[#A78BFA]/10 px-8 py-3.5 rounded-full text-[10px] md:text-[11px] font-black tracking-[0.6em] text-white uppercase hover:bg-[#A78BFA] hover:text-black transition-all duration-700 shadow-3xl group/btn overflow-hidden relative"
                         >
-                            <span className="relative z-10">Secure Seat</span>
+                            <span className="relative z-10">Book Now</span>
                             <div className="absolute inset-0 bg-[#A78BFA] translate-y-full group-hover/btn:translate-y-0 transition-transform duration-700 ease-[0.16,1,0.3,1]" />
                         </button>
                     </div>
@@ -132,7 +141,10 @@ export default function Header({ onBookClick }) {
                                 >
                                     <Link
                                         to={item.path}
-                                        onClick={() => setIsMenuOpen(false)}
+                                        onClick={() => {
+                                            setIsMenuOpen(false);
+                                            scrollToTop();
+                                        }}
                                         className={`text-4xl md:text-6xl font-black uppercase tracking-tighter transition-colors ${location.pathname === item.path ? 'text-[#A78BFA]' : 'text-white hover:text-[#A78BFA]'}`}
                                     >
                                         {item.label}

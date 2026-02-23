@@ -19,6 +19,8 @@ import ContactPage from './pages/ContactPage'
 import AdminLogin from './pages/AdminLogin'
 import AdminDashboard from './pages/AdminDashboard'
 import AdminEvents from './pages/AdminEvents'
+import AdminGallery from './pages/AdminGallery'
+import LocationsPage from './pages/LocationsPage'
 
 export default function App() {
     const location = useLocation()
@@ -46,7 +48,8 @@ export default function App() {
         '/spaces': { base: 3 / 12, weight: 2 / 12 },
         '/experience': { base: 5 / 12, weight: 4 / 12 },
         '/gallery': { base: 9 / 12, weight: 1 / 12 },
-        '/contact': { base: 10 / 12, weight: 2 / 12 }
+        '/contact': { base: 10 / 12, weight: 2 / 12 },
+        '/locations': { base: 3 / 12, weight: 2 / 12 }
     }), [])
 
     useEffect(() => {
@@ -109,6 +112,19 @@ export default function App() {
         }
     }, [location.pathname, routeConfig])
 
+    // Global Scroll to Top Listener
+    useEffect(() => {
+        const handleScrollToTop = () => {
+            if (lenisRef.current) {
+                lenisRef.current.scrollTo(0, { immediate: true })
+            } else {
+                window.scrollTo(0, 0)
+            }
+        }
+        window.addEventListener('scroll-to-top', handleScrollToTop)
+        return () => window.removeEventListener('scroll-to-top', handleScrollToTop)
+    }, [])
+
     return (
         <main className="relative bg-[#030303]">
             <CustomCursor />
@@ -139,6 +155,8 @@ export default function App() {
                     <Route path="/admin/login" element={<AdminLogin />} />
                     <Route path="/admin/dashboard" element={<AdminDashboard />} />
                     <Route path="/admin/events" element={<AdminEvents />} />
+                    <Route path="/admin/gallery" element={<AdminGallery />} />
+                    <Route path="/locations" element={<LocationsPage onBookClick={handleOpenBooking} />} />
                 </Routes>
             </div>
 

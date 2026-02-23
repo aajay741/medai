@@ -1,5 +1,3 @@
-import Venues from '../sections/Venues'
-import Facilities from '../sections/Facilities'
 import BookingBenefits from '../sections/BookingBenefits'
 import StageTechnology from '../sections/StageTechnology'
 import Footer from '../components/Footer'
@@ -13,13 +11,7 @@ export default function SpacesPage({ onBookClick }) {
             transition={{ duration: 1 }}
             className="bg-[#030303]"
         >
-            <div id="spaces-hero">
-                <Venues onBookClick={onBookClick} />
-            </div>
-            <div id="spaces-facilities">
-                <Facilities />
-            </div>
-            <div id="spaces-tech">
+            <div id="spaces-tech" className="pt-20">
                 <StageTechnology />
             </div>
             <div id="spaces-benefits">

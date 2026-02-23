@@ -22,7 +22,7 @@ export default function Footer() {
                                 transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
                                 className="inline-block"
                             >
-                                TALK.
+                                MEDAI.
                             </motion.span>
                         </h2>
                         <motion.p
@@ -32,7 +32,7 @@ export default function Footer() {
                             transition={{ duration: 1, delay: 0.2 }}
                             className="text-2xl md:text-3xl text-white/70 max-w-sm leading-tight font-black italic"
                         >
-                            Ready to take the stage? Connect with our team to book your curation.
+                            The home for performing arts. Join our network of premium artist-run spaces.
                         </motion.p>
                     </motion.div>
 
@@ -44,31 +44,38 @@ export default function Footer() {
                             transition={{ duration: 1, delay: 0.3 }}
                             className="space-y-12"
                         >
-                            <div>
-                                <span className="text-[11px] md:text-xs font-black tracking-[0.5em] block mb-6 text-[#A78BFA] opacity-80 uppercase">Locations</span>
-                                <ul className="space-y-4 font-black text-xs tracking-widest text-white/60">
-                                    {['CHENNAI - ALWARPET', 'BENGALURU - KORAMANGALA', 'COIMBATORE - RACE COURSE'].map((loc, i) => (
-                                        <motion.li
-                                            key={i}
-                                            whileHover={{ x: 5, color: '#A78BFA' }}
-                                            className="transition-colors cursor-default"
-                                        >
-                                            {loc}
-                                        </motion.li>
-                                    ))}
-                                </ul>
-                            </div>
-                            <div>
-                                <span className="text-[11px] md:text-xs font-black tracking-[0.5em] block mb-6 text-[#A78BFA] opacity-80 uppercase">Social</span>
-                                <ul className="space-y-4">
-                                    {['Instagram', 'Facebook', 'LinkedIn'].map((social, i) => (
-                                        <motion.li key={social} whileHover={{ x: 5 }}>
-                                            <a href="#" className="text-[11px] font-black tracking-[0.4em] uppercase text-[#A78BFA] opacity-60 hover:opacity-100 hover:text-white transition-all inline-block underline-offset-8 decoration-[#A78BFA]/20 hover:decoration-white/50">
-                                                {social}
-                                            </a>
-                                        </motion.li>
-                                    ))}
-                                </ul>
+                            <div className="space-y-10">
+                                <span className="text-[11px] md:text-xs font-black tracking-[0.5em] block mb-6 text-[#A78BFA] opacity-80 uppercase">Our Stages</span>
+
+                                {/* Chennai Location */}
+                                <div className="space-y-2">
+                                    <a href="https://share.google/cJbLUT3vpgCAAewym" target="_blank" rel="noopener noreferrer" className="group">
+                                        <h4 className="text-white font-black text-sm tracking-widest group-hover:text-[#A78BFA] transition-colors uppercase">Chennai — Alwarpet</h4>
+                                        <p className="text-[10px] text-white/40 leading-relaxed font-medium uppercase tracking-wider max-w-[250px]">
+                                            3rd floor 16, 1st Cross St, Cooperative Colony, Alwarpet, Chennai 600018
+                                        </p>
+                                    </a>
+                                </div>
+
+                                {/* Bangalore Location */}
+                                <div className="space-y-2">
+                                    <a href="https://share.google/OCOZmpdqdnNOnvK2N" target="_blank" rel="noopener noreferrer" className="group">
+                                        <h4 className="text-white font-black text-sm tracking-widest group-hover:text-[#A78BFA] transition-colors uppercase">Bengaluru — Koramangala</h4>
+                                        <p className="text-[10px] text-white/40 leading-relaxed font-medium uppercase tracking-wider max-w-[250px]">
+                                            No.15, KHB MIG Colony, 5th Block, Koramangala, Bengaluru 560030
+                                        </p>
+                                    </a>
+                                </div>
+
+                                {/* Coimbatore Location */}
+                                <div className="space-y-2">
+                                    <a href="https://share.google/t3a7On8VUXVPKvgN7" target="_blank" rel="noopener noreferrer" className="group">
+                                        <h4 className="text-white font-black text-sm tracking-widest group-hover:text-[#A78BFA] transition-colors uppercase">Coimbatore — Clusters</h4>
+                                        <p className="text-[10px] text-white/40 leading-relaxed font-medium uppercase tracking-wider max-w-[250px]">
+                                            Clusters Media College, Coimbatore
+                                        </p>
+                                    </a>
+                                </div>
                             </div>
                         </motion.div>
 
@@ -79,22 +86,19 @@ export default function Footer() {
                             transition={{ duration: 1, delay: 0.4 }}
                             className="space-y-12 flex flex-col justify-between"
                         >
-                            <motion.div
-                                whileHover={{ x: 5 }}
-                                transition={{ duration: 0.4 }}
-                            >
-                                <span className="text-[11px] md:text-xs font-black tracking-[0.5em] block mb-6 text-[#A78BFA] opacity-80 uppercase">Direct</span>
+                            <div>
+                                <span className="text-[11px] md:text-xs font-black tracking-[0.5em] block mb-6 text-[#A78BFA] opacity-80 uppercase">Connect</span>
                                 <p className="font-black text-xl md:text-2xl mb-1 tracking-tighter hover:text-[#A78BFA] transition-colors cursor-pointer text-white">hello@medai.in</p>
-                                <p className="text-[#A78BFA] opacity-60 text-sm italic tracking-widest font-bold">+91 98765 43210</p>
-                            </motion.div>
-                            <div className="pt-8">
-                                <motion.button
-                                    whileHover={{ scale: 1.05, backgroundColor: "#A78BFA", color: "#000", borderColor: "#A78BFA" }}
-                                    whileTap={{ scale: 0.95 }}
-                                    className="w-full py-6 border border-[#A78BFA]/30 bg-[#A78BFA]/5 text-white transition-all duration-700 text-xs tracking-[0.6em] uppercase font-black rounded-full shadow-3xl"
-                                >
-                                    Join Artist Network
-                                </motion.button>
+                                <p className="text-[#A78BFA] opacity-60 text-sm italic tracking-widest font-bold">@medai_thestage</p>
+                            </div>
+
+                            <div className="space-y-6">
+                                <span className="text-[11px] md:text-xs font-black tracking-[0.5em] block text-[#A78BFA] opacity-80 uppercase">Network</span>
+                                <div className="flex gap-6 justify-center md:justify-start">
+                                    {['Instagram', 'Facebook', 'LinkedIn'].map((social) => (
+                                        <a key={social} href="#" className="text-[10px] font-black tracking-widest uppercase text-white/40 hover:text-white transition-colors">{social}</a>
+                                    ))}
+                                </div>
                             </div>
                         </motion.div>
                     </div>
@@ -105,15 +109,14 @@ export default function Footer() {
                     whileInView={{ opacity: 1 }}
                     viewport={{ once: true }}
                     transition={{ duration: 1, delay: 0.6 }}
-                    className="pt-12 border-t border-[#A78BFA]/20 flex flex-col md:flex-row justify-between items-center gap-8 text-[10px] tracking-[0.5em] uppercase font-black text-[#A78BFA] opacity-60 text-center md:text-left"
+                    className="pt-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-8 text-[9px] tracking-[0.4em] uppercase font-black text-white/20 text-center md:text-left"
                 >
-                    <div>© 2026 MEDAI PERFORMANCE SPACES</div>
-                    <div className="flex flex-col md:flex-row gap-6 md:gap-12">
+                    <div>© 2026 MEDAI PERFORMANCE SPACES. ALL RIGHTS RESERVED.</div>
+                    <div className="flex gap-12">
                         {['Privacy', 'Technical Rider', 'Terms'].map(link => (
-                            <span key={link} className="hover:text-white cursor-pointer transition-colors underline-offset-4 decoration-[#A78BFA]/20">{link}</span>
+                            <span key={link} className="hover:text-white cursor-pointer transition-colors">{link}</span>
                         ))}
                     </div>
-                    <div className="opacity-80 italic text-[#A78BFA]/40">Crafted for Excellence</div>
                 </motion.div>
             </div>
         </footer>

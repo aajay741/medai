@@ -1,6 +1,5 @@
 -- Add Events Table to existing schema
 
-USE medai_bookings;
 
 -- Events Table
 CREATE TABLE IF NOT EXISTS events (

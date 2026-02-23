@@ -1,4 +1,5 @@
 import Hero from '../sections/Hero'
+import UpcomingEvents from '../sections/UpcomingEvents'
 import About from '../sections/About'
 import Features from '../sections/Features'
 import NeuralShowcase from '../sections/NeuralShowcase'
@@ -15,6 +16,10 @@ export default function Home({ onBookClick }) {
         >
             <div id="hero">
                 <Hero onBookClick={onBookClick} />
+            </div>
+
+            <div id="upcoming-events">
+                <UpcomingEvents onBookClick={onBookClick} />
             </div>
 
             <div id="home-about">

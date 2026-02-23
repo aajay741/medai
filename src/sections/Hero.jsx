@@ -85,18 +85,9 @@ export default function Hero({ onBookClick }) {
                 }}
                 className="text-center z-20 w-full px-6 md:px-12 flex flex-col items-center justify-center"
             >
-                <div className="overflow-hidden mb-16 md:mb-20">
-                    <motion.span
-                        initial={{ y: 20, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        transition={{ duration: 1.2, ease: 'circOut' }}
-                        className="text-[10px] md:text-meta block font-bold text-[#A78BFA]/90 tracking-[0.8em] md:tracking-[1.2em] uppercase text-center w-full"
-                    >
-                        An Artist-Run Performance Network
-                    </motion.span>
-                </div>
 
-                <div className="relative w-full max-w-[98vw] flex justify-center mx-auto">
+
+                <div className="relative w-full max-w-[98vw] flex justify-center mx-auto mt-20 md:mt-32">
                     <AnimatedTitle className="text-[15vw] md:text-[22vw] font-black leading-[0.65] tracking-[-0.06em] uppercase text-white select-none filter drop-shadow-[0_30px_60px_rgba(0,0,0,0.5)] text-center w-full">
                         MEDAI
                     </AnimatedTitle>
@@ -106,17 +97,17 @@ export default function Hero({ onBookClick }) {
                     initial={{ opacity: 0, y: 30 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 2, delay: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                    className="mt-24 md:mt-36 w-full flex flex-col items-center"
+                    className="mt-12 md:mt-20 w-full flex flex-col items-center"
                 >
                     <p className="text-sm md:text-3xl text-white/70 uppercase tracking-[0.4em] md:tracking-[0.6em] leading-[1.8] font-medium italic text-center max-w-[80%] mx-auto w-full flex flex-col items-center">
-                        <span>Expanding the <span className="text-white font-bold not-italic tracking-[0.6em] md:tracking-[1em] ml-2 md:ml-4">SENSES</span> </span>
+                        <span>The <span className="text-white font-bold not-italic tracking-[0.6em] md:tracking-[1em] ml-2 md:ml-4">STAGE</span> </span>
                     </p>
 
                     <button
                         onClick={onBookClick}
-                        className="mt-12 md:mt-16 bg-[#A78BFA] text-black px-8 py-4 md:px-12 md:py-5 rounded-full text-[10px] md:text-xs font-black tracking-[0.4em] md:tracking-[0.6em] uppercase hover:bg-white hover:scale-105 transition-all duration-500 shadow-3xl pointer-events-auto"
+                        className="mt-8 md:mt-10 bg-[#A78BFA] text-black px-8 py-4 md:px-12 md:py-5 rounded-full text-[10px] md:text-xs font-black tracking-[0.4em] md:tracking-[0.6em] uppercase hover:bg-white hover:scale-105 transition-all duration-500 shadow-3xl pointer-events-auto"
                     >
-                        Secure Your Seat
+                        Book Now
                     </button>
 
                     <div className="mt-16 md:mt-32 flex flex-wrap items-center justify-center gap-6 md:gap-24 opacity-60 px-4">
