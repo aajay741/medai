@@ -55,6 +55,10 @@ export default function Hero({ onBookClick }) {
     const yTranslation = useTransform(scrollYProgress, [0, 0.3], [0, -50])
     const opacity = useTransform(scrollYProgress, [0, 0.2], [1, 0])
 
+    const scrollToSection = (id) => {
+        document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
+    }
+
     return (
         <section ref={container} className="min-h-[100vh] flex flex-col items-center justify-center relative section-container overflow-hidden perspective-1000 py-24 md:py-40">
             {/* 3D Theatrical Background */}
@@ -86,7 +90,6 @@ export default function Hero({ onBookClick }) {
                 className="text-center z-20 w-full px-6 md:px-12 flex flex-col items-center justify-center"
             >
 
-
                 <div className="relative w-full max-w-[98vw] flex justify-center mx-auto mt-20 md:mt-32">
                     <AnimatedTitle className="text-[15vw] md:text-[22vw] font-black leading-[0.65] tracking-[-0.06em] uppercase text-white select-none filter drop-shadow-[0_30px_60px_rgba(0,0,0,0.5)] text-center w-full">
                         MEDAI
@@ -99,16 +102,24 @@ export default function Hero({ onBookClick }) {
                     transition={{ duration: 2, delay: 0.8, ease: [0.16, 1, 0.3, 1] }}
                     className="mt-12 md:mt-20 w-full flex flex-col items-center"
                 >
-                    <p className="text-sm md:text-3xl text-white/70 uppercase tracking-[0.4em] md:tracking-[0.6em] leading-[1.8] font-medium italic text-center max-w-[80%] mx-auto w-full flex flex-col items-center">
-                        <span>The <span className="text-white font-bold not-italic tracking-[0.6em] md:tracking-[1em] ml-2 md:ml-4">STAGE</span> </span>
+                    <p className="text-sm md:text-lg text-white/60 uppercase tracking-[0.3em] md:tracking-[0.5em] leading-[2] font-medium text-center max-w-[70%] mx-auto">
+                        Black box spaces for contemporary performing arts
                     </p>
 
-                    <button
-                        onClick={onBookClick}
-                        className="mt-8 md:mt-10 bg-[#A78BFA] text-black px-8 py-4 md:px-12 md:py-5 rounded-full text-[10px] md:text-xs font-black tracking-[0.4em] md:tracking-[0.6em] uppercase hover:bg-white hover:scale-105 transition-all duration-500 shadow-3xl pointer-events-auto"
-                    >
-                        Book Now
-                    </button>
+                    <div className="mt-8 md:mt-10 flex flex-wrap items-center justify-center gap-4 md:gap-6">
+                        <button
+                            onClick={onBookClick}
+                            className="bg-[#A78BFA] text-black px-8 py-4 md:px-12 md:py-5 rounded-full text-[10px] md:text-xs font-black tracking-[0.4em] md:tracking-[0.6em] uppercase hover:bg-white hover:scale-105 transition-all duration-500 shadow-3xl pointer-events-auto"
+                        >
+                            Check Availability
+                        </button>
+                        <button
+                            onClick={() => scrollToSection('venues')}
+                            className="border border-white/20 text-white px-8 py-4 md:px-12 md:py-5 rounded-full text-[10px] md:text-xs font-black tracking-[0.4em] md:tracking-[0.6em] uppercase hover:border-[#A78BFA] hover:text-[#A78BFA] hover:scale-105 transition-all duration-500 pointer-events-auto"
+                        >
+                            Explore Venues
+                        </button>
+                    </div>
 
                     <div className="mt-16 md:mt-32 flex flex-wrap items-center justify-center gap-6 md:gap-24 opacity-60 px-4">
                         {["CHENNAI", "BENGALURU", "COIMBATORE"].map((city, i) => (

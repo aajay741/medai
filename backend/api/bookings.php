@@ -56,10 +56,33 @@ try {
             $bookingRef, $name, $email, $phone, $location, $eventDate, 
             $eventTime, $ticketType, $quantity, $totalAmount, $specialRequests
         ]);
+
+        // Integrate Zoho Invoice
+        require_once '../config/ZohoInvoiceService.php';
+        $zohoInvoiceId = ZohoInvoiceService::createInvoice([
+            'name' => $name,
+            'email' => $email,
+            'phone' => $phone,
+            'booking_reference' => $bookingRef,
+            'show_title' => $input['showTitle'] ?? 'MEDAI Performance',
+            'location' => $location,
+            'event_date' => $eventDate,
+            'event_time' => $eventTime,
+            'ticket_type' => $ticketType,
+            'quantity' => $quantity,
+            'price_per_unit' => $totalAmount / $quantity
+        ]);
+
+        // Update booking with Zoho Invoice ID if needed
+        if ($zohoInvoiceId) {
+            $stmt = $db->prepare("UPDATE bookings SET special_requests = CONCAT(special_requests, '\nZoho Invoice ID: ', ?) WHERE booking_reference = ?");
+            $stmt->execute([$zohoInvoiceId, $bookingRef]);
+        }
         
         sendResponse(true, [
             'bookingReference' => $bookingRef,
-            'totalAmount' => $totalAmount
+            'totalAmount' => $totalAmount,
+            'zohoInvoiceId' => $zohoInvoiceId
         ], 'Booking created successfully', 201);
         
     } elseif ($method === 'GET') {

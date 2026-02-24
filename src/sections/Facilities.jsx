@@ -9,17 +9,18 @@ export default function Facilities() {
         offset: ["start end", "end start"]
     })
 
-    // 1. ATMOSPHERIC PARALLAX (Subtle depth)
     const bgY = useTransform(scrollYProgress, [0, 1], [100, -100])
     const bgOpacity = useTransform(scrollYProgress, [0, 0.5, 1], [0, 0.04, 0])
 
     const facilities = [
-        { title: "Stage Lighting", desc: "LED profiles, PARs, washes, moving heads" },
-        { title: "Audio Architecture", desc: "Sound support & treated halls" },
-        { title: "Adaptable Stage", desc: "Flexible setups for performance needs" },
-        { title: "Visual Projection", desc: "High-resolution LED screens" },
-        { title: "Artist Ecosystem", desc: "Green room, backstage & rehearsal" },
-        { title: "Stage Support", desc: "FOH console & assistance" }
+        { title: "Stage Lighting", desc: "LED profiles, PARs, washes & moving heads" },
+        { title: "Sound Support", desc: "High-quality audio for theatre, music & dance" },
+        { title: "Flexible Stage", desc: "Adaptable configuration for any performance" },
+        { title: "Visual Projection", desc: "LED screens & projection support" },
+        { title: "Acoustic Halls", desc: "Acoustically treated for superior fidelity" },
+        { title: "Artist Facilities", desc: "Green room, backstage & changing facilities" },
+        { title: "FOH Console", desc: "Onsite technical assistance available" },
+        { title: "Rehearsal Add-ons", desc: "Rehearsal space available upon request" }
     ]
 
     return (
@@ -48,8 +49,8 @@ export default function Facilities() {
                     >
                         <span className="text-xs md:text-sm font-black tracking-[0.6em] text-[#A78BFA] block mb-8 md:mb-12 uppercase opacity-80">04 / Infrastructure</span>
                         <h2 className="text-4xl md:text-7xl font-black mb-8 md:mb-12 tracking-tighter uppercase leading-[0.85] text-white">
-                            Production <br />
-                            <span className="italic opacity-40">Superiority.</span>
+                            Fully <br />
+                            <span className="italic opacity-40">Equipped.</span>
                         </h2>
 
                         {/* 3D Facility Core Integration */}
@@ -59,7 +60,7 @@ export default function Facilities() {
 
                         <div className="h-[2px] w-12 bg-[#A78BFA]/60 mb-12" />
                         <p className="text-xl md:text-2xl text-white/70 leading-relaxed font-black max-w-sm italic">
-                            Engineered to meet the highest professional standards of performing arts production.
+                            Professional performance infrastructure for every art form.
                         </p>
                     </motion.div>
                 </div>
@@ -72,11 +73,11 @@ export default function Facilities() {
                             initial={{ opacity: 0, y: 30 }}
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true }}
-                            transition={{ delay: i * 0.1, duration: 1, ease: "backOut" }}
+                            transition={{ delay: i * 0.08, duration: 1, ease: "backOut" }}
                             whileHover={{ y: -8, backgroundColor: "rgba(167, 139, 250, 0.05)" }}
-                            className="group glass p-8 md:p-10 rounded-[4rem] flex flex-col justify-between h-full border border-white/5 shadow-3xl transition-all duration-500 w-full relative overflow-hidden backdrop-blur-xl bg-white/[0.01]"
+                            className="group glass p-8 md:p-10 rounded-[3rem] flex flex-col justify-between h-full border border-white/5 shadow-3xl transition-all duration-500 w-full relative overflow-hidden backdrop-blur-xl bg-white/[0.01]"
                         >
-                            <div className="mb-10 w-14 h-14 rounded-2xl bg-[#A78BFA]/10 border border-[#A78BFA]/30 flex items-center justify-center group-hover:bg-[#A78BFA] group-hover:text-black transition-all duration-500">
+                            <div className="mb-6 w-14 h-14 rounded-2xl bg-[#A78BFA]/10 border border-[#A78BFA]/30 flex items-center justify-center group-hover:bg-[#A78BFA] group-hover:text-black transition-all duration-500">
                                 <span className="text-xs font-black text-[#A78BFA] group-hover:text-black tracking-tighter">0{i + 1}</span>
                             </div>
                             <div>

@@ -8,8 +8,16 @@ define('DB_CHARSET', 'utf8mb4');
 
 // Application Configuration
 define('APP_NAME', 'MEDAI Admin Panel');
-define('APP_URL', 'https://darkturquoise-magpie-724295.hostingersite.com');
+define('APP_URL', 'https://darkcyan-pig-525370.hostingersite.com/');
 define('ADMIN_EMAIL', 'admin@medai.in');
+
+// Zoho Invoice Configuration
+define('ZOHO_CLIENT_ID', 'YOUR_CLIENT_ID');
+define('ZOHO_CLIENT_SECRET', 'YOUR_CLIENT_SECRET');
+define('ZOHO_REFRESH_TOKEN', 'YOUR_REFRESH_TOKEN');
+define('ZOHO_ORGANIZATION_ID', 'YOUR_ORGANIZATION_ID');
+define('ZOHO_BASE_URL', 'https://www.zohoapis.com/invoice/v3');
+define('ZOHO_AUTH_URL', 'https://accounts.zoho.com/oauth/v2/token');
 
 // Security
 define('JWT_SECRET', 'your-secret-key-change-this-in-production'); // Change this!
@@ -21,7 +29,9 @@ define('ALLOWED_ORIGINS', [
     'http://localhost:3000',
     'http://localhost:5174',
     'https://darkturquoise-magpie-724295.hostingersite.com',
-    'http://darkturquoise-magpie-724295.hostingersite.com'
+    'http://darkturquoise-magpie-724295.hostingersite.com',
+    'https://darkcyan-pig-525370.hostingersite.com',
+    'http://darkcyan-pig-525370.hostingersite.com'
 ]);
 
 // Timezone

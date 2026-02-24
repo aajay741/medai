@@ -2,24 +2,41 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Link, useLocation } from 'react-router-dom'
 
+const scrollToSection = (id) => {
+    const el = document.getElementById(id)
+    if (el) {
+        el.scrollIntoView({ behavior: 'smooth' })
+    }
+}
+
 export default function Header({ onBookClick }) {
     const [isMenuOpen, setIsMenuOpen] = useState(false)
     const location = useLocation()
+    const isHome = location.pathname === '/'
 
     const toggleMenu = () => setIsMenuOpen(!isMenuOpen)
 
+    // Single-page anchors for home; route links for other paths
     const menuItems = [
-        { label: 'Network', path: '/network' },
-        { label: 'Spaces', path: '/spaces' },
-        { label: 'Experience', path: '/experience' },
-        { label: 'Gallery', path: '/gallery' },
-        { label: 'Locations', path: '/locations' },
-        { label: 'Contact', path: '/contact' }
+        { label: 'Venues', anchor: 'venues', path: '/#venues' },
+        { label: 'About', anchor: 'about', path: '/#about' },
+        { label: 'Gallery', anchor: 'gallery-section', path: '/#gallery-section' },
+        { label: 'Contact', anchor: 'contact', path: '/#contact' },
     ]
 
+    const handleNavClick = (item) => {
+        setIsMenuOpen(false)
+        if (isHome) {
+            scrollToSection(item.anchor)
+        } else {
+            window.location.href = item.path
+        }
+        window.dispatchEvent(new CustomEvent('scroll-to-top'))
+    }
+
     const scrollToTop = () => {
-        window.dispatchEvent(new CustomEvent('scroll-to-top'));
-    };
+        window.dispatchEvent(new CustomEvent('scroll-to-top'))
+    }
 
     return (
         <>
@@ -29,20 +46,20 @@ export default function Header({ onBookClick }) {
                 transition={{ duration: 1.5, ease: [0.16, 1, 0.3, 1], delay: 0.5 }}
                 className="fixed top-0 left-0 right-0 z-[100] pointer-events-none"
             >
-                {/* Premium Isolate Layer - Prevents content clutter during scroll */}
+                {/* Premium Isolate Layer */}
                 <div className="absolute inset-0 bg-[#030303]/40 backdrop-blur-xl border-b border-white/[0.02] pointer-events-none" />
 
-                {/* Anchoring Horizon Line (Visual Depth) */}
+                {/* Anchoring Horizon Line */}
                 <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-b from-black/80 via-black/20 to-transparent pointer-events-none" />
 
                 <div className="relative max-w-[1920px] mx-auto px-6 md:px-16 lg:px-24 h-16 md:h-24 flex justify-between items-center group/header">
-                    {/* Brand Identity - Anchored Left */}
+                    {/* Brand Identity */}
                     <Link
                         to="/"
                         className="flex flex-col gap-1 pointer-events-auto cursor-pointer group/brand z-[102]"
                         onClick={() => {
-                            isMenuOpen && setIsMenuOpen(false);
-                            scrollToTop();
+                            isMenuOpen && setIsMenuOpen(false)
+                            scrollToTop()
                         }}
                     >
                         <div className="flex items-center gap-4 md:gap-6">
@@ -58,23 +75,21 @@ export default function Header({ onBookClick }) {
                         </div>
                     </Link>
 
-                    {/* Primary Navigation / Trigger - Anchored Right */}
+                    {/* Navigation / CTA */}
                     <div className="pointer-events-auto flex items-center gap-4 md:gap-12 z-[102]">
-                        {/* Architectural Menu Sections (Desktop) */}
+                        {/* Desktop Nav */}
                         <nav className="hidden lg:flex items-center gap-10">
                             {menuItems.map((item) => (
-                                <Link
-                                    key={item.path}
-                                    to={item.path}
-                                    onClick={scrollToTop}
+                                <button
+                                    key={item.anchor}
+                                    onClick={() => handleNavClick(item)}
                                     className="group/nav relative py-2"
                                 >
-                                    <span className={`text-[10px] font-black tracking-[0.4em] uppercase transition-all duration-500 ${location.pathname === item.path ? 'text-[#A78BFA] tracking-[0.6em]' : 'text-white/60 group-hover/nav:text-white group-hover/nav:tracking-[0.6em]'}`}>
+                                    <span className="text-[10px] font-black tracking-[0.4em] uppercase transition-all duration-500 text-white/60 group-hover/nav:text-white group-hover/nav:tracking-[0.6em]">
                                         {item.label}
                                     </span>
-                                    {/* Premium Interaction Line */}
-                                    <div className={`absolute bottom-0 left-0 h-[1px] bg-[#A78BFA] transition-all duration-700 ease-[0.16,1,0.3,1] ${location.pathname === item.path ? 'w-full' : 'w-0 group-hover/nav:w-full'}`} />
-                                </Link>
+                                    <div className="absolute bottom-0 left-0 h-[1px] bg-[#A78BFA] transition-all duration-700 ease-[0.16,1,0.3,1] w-0 group-hover/nav:w-full" />
+                                </button>
                             ))}
                         </nav>
 
@@ -114,7 +129,7 @@ export default function Header({ onBookClick }) {
                     </div>
                 </div>
 
-                {/* Structural Anchor Lines - Visual link to Cinematic Frame */}
+                {/* Structural Anchor Lines */}
                 <div className="absolute top-0 left-8 md:left-16 lg:left-24 w-[1px] h-12 bg-[#A78BFA]/15 shadow-[0_0_15px_rgba(167,139,250,0.2)]" />
                 <div className="absolute top-0 right-8 md:right-16 lg:right-24 w-[1px] h-12 bg-[#A78BFA]/15 shadow-[0_0_15px_rgba(167,139,250,0.2)]" />
             </motion.header>
@@ -134,21 +149,17 @@ export default function Header({ onBookClick }) {
                         <nav className="flex flex-col items-center gap-12 relative z-10">
                             {menuItems.map((item, i) => (
                                 <motion.div
-                                    key={item.path}
+                                    key={item.anchor}
                                     initial={{ opacity: 0, y: 40 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ duration: 0.8, delay: 0.1 + (i * 0.1), ease: [0.16, 1, 0.3, 1] }}
                                 >
-                                    <Link
-                                        to={item.path}
-                                        onClick={() => {
-                                            setIsMenuOpen(false);
-                                            scrollToTop();
-                                        }}
-                                        className={`text-4xl md:text-6xl font-black uppercase tracking-tighter transition-colors ${location.pathname === item.path ? 'text-[#A78BFA]' : 'text-white hover:text-[#A78BFA]'}`}
+                                    <button
+                                        onClick={() => handleNavClick(item)}
+                                        className="text-4xl md:text-6xl font-black uppercase tracking-tighter transition-colors text-white hover:text-[#A78BFA]"
                                     >
                                         {item.label}
-                                    </Link>
+                                    </button>
                                 </motion.div>
                             ))}
 
@@ -157,12 +168,12 @@ export default function Header({ onBookClick }) {
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ duration: 0.8, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
                                 onClick={() => {
-                                    setIsMenuOpen(false);
-                                    onBookClick();
+                                    setIsMenuOpen(false)
+                                    onBookClick()
                                 }}
                                 className="mt-8 bg-[#A78BFA] text-black px-12 py-5 rounded-full text-xs font-black tracking-[0.6em] uppercase hover:bg-white hover:scale-105 transition-all duration-500"
                             >
-                                Secure Seat
+                                Book Now
                             </motion.button>
                         </nav>
                     </motion.div>

@@ -1,8 +1,11 @@
 import Hero from '../sections/Hero'
-import UpcomingEvents from '../sections/UpcomingEvents'
-import About from '../sections/About'
-import Features from '../sections/Features'
-import NeuralShowcase from '../sections/NeuralShowcase'
+import Stats from '../sections/Stats'
+import Intro from '../sections/Intro'
+import Venues from '../sections/Venues'
+import Facilities from '../sections/Facilities'
+import Gallery from '../sections/Gallery'
+import Quote from '../sections/Quote'
+import ContactSection from '../sections/ContactSection'
 import Footer from '../components/Footer'
 import { motion } from 'framer-motion'
 
@@ -18,26 +21,33 @@ export default function Home({ onBookClick }) {
                 <Hero onBookClick={onBookClick} />
             </div>
 
-            <div id="upcoming-events">
-                <UpcomingEvents onBookClick={onBookClick} />
+            <div id="stats">
+                <Stats />
             </div>
 
-            <div id="home-about">
-                <About />
+            <div id="about">
+                <Intro onBookClick={onBookClick} />
             </div>
 
-            <div id="home-neural">
-                <NeuralShowcase />
+            <div id="venues">
+                <Venues onBookClick={onBookClick} />
             </div>
 
-            <div id="home-features">
-                <Features />
+            <div id="facilities">
+                <Facilities />
             </div>
 
-            {/* Cinematic divider */}
-            <section className="py-20 flex justify-center">
-                <div className="w-px h-40 bg-gradient-to-b from-[#A78BFA]/40 to-transparent" />
-            </section>
+            <div id="gallery">
+                <Gallery />
+            </div>
+
+            <div id="quote">
+                <Quote />
+            </div>
+
+            <div id="contact">
+                <ContactSection />
+            </div>
 
             <Footer />
         </motion.div>

@@ -1,7 +1,7 @@
 import { motion, useScroll, useTransform } from 'framer-motion'
 import { useRef } from 'react'
 
-export default function Intro() {
+export default function Intro({ onBookClick }) {
     const containerRef = useRef(null)
     const { scrollYProgress } = useScroll({
         target: containerRef,
@@ -25,7 +25,7 @@ export default function Intro() {
                         viewport={{ once: true }}
                         className="text-xs md:text-sm font-black tracking-[0.6em] text-[#A78BFA] block mb-8 md:mb-12 uppercase opacity-80"
                     >
-                        01 / The Vision
+                        01 / The Stage
                     </motion.span>
                     <motion.h2
                         initial={{ opacity: 0, y: 30 }}
@@ -34,17 +34,17 @@ export default function Intro() {
                         transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
                         className="text-4xl md:text-6xl lg:text-8xl font-black mb-8 md:mb-12 leading-[0.85] tracking-tighter uppercase text-white"
                     >
-                        A Black Box <br />
-                        <span className="opacity-40 italic">Ecosystem.</span>
+                        Artist-Run <br />
+                        <span className="opacity-40 italic">Spaces.</span>
                     </motion.h2>
                     <div className="max-w-xl space-y-6 md:space-y-8 pb-12">
                         <motion.p
                             initial={{ opacity: 0, y: 20 }}
                             whileInView={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.2 }}
-                            className="text-lg md:text-3xl text-white leading-relaxed font-medium italic opacity-90"
+                            className="text-lg md:text-2xl text-white leading-relaxed font-medium italic opacity-90"
                         >
-                            Medai is an artist-run network of black box spaces, meticulously designed for the <span className="text-[#A78BFA] font-black">unfiltered expression</span> of performing arts.
+                            Medai is a fully equipped, artist-run black box performance space located in <span className="text-[#A78BFA] font-black">Chennai, Bengaluru and Coimbatore.</span>
                         </motion.p>
                         <motion.p
                             initial={{ opacity: 0, y: 20 }}
@@ -52,9 +52,29 @@ export default function Intro() {
                             transition={{ delay: 0.4 }}
                             className="text-base md:text-xl text-white/50 leading-relaxed font-medium"
                         >
-                            From Chennai to Bengaluru and Coimbatore, we provide the canvas for theatre, dance, and music to thrive in their purest forms.
+                            Designed for live performing arts — theatre, dance, music, stand-up comedy, traditional arts, contemporary and experimental works.
                         </motion.p>
                     </div>
+
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.6 }}
+                        className="flex flex-wrap gap-4"
+                    >
+                        <button
+                            onClick={() => document.getElementById('venues')?.scrollIntoView({ behavior: 'smooth' })}
+                            className="px-8 py-4 bg-[#A78BFA] text-black rounded-full text-[10px] font-black tracking-[0.6em] uppercase hover:bg-white hover:scale-105 transition-all duration-500 shadow-3xl"
+                        >
+                            Explore Our Venues
+                        </button>
+                        <button
+                            onClick={onBookClick}
+                            className="px-8 py-4 border border-[#A78BFA]/30 text-white rounded-full text-[10px] font-black tracking-[0.6em] uppercase hover:border-[#A78BFA] hover:text-[#A78BFA] transition-all duration-500"
+                        >
+                            Book a Slot
+                        </button>
+                    </motion.div>
                 </motion.div>
 
                 {/* Right Column: Mission Card */}
@@ -69,11 +89,11 @@ export default function Intro() {
                     >
                         {/* Interactive Background Glow */}
                         <motion.div
-                            className="absolute inset-0 bg-gradient-to-tr from-[#A78BFA]/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700"
+                            className="absolute inset-0 bg-gradient-to-tr from-[#A78BFA]/10 via-transparent to-transparent"
                         />
 
                         <div className="relative z-10">
-                            <span className="text-[11px] md:text-sm font-black tracking-[0.5em] block mb-8 text-[#A78BFA] uppercase">The Mission</span>
+                            <span className="text-[11px] md:text-sm font-black tracking-[0.5em] block mb-8 text-[#A78BFA] uppercase">Our Mission</span>
                             <p className="text-2xl md:text-3xl font-black leading-tight italic text-white mb-10 tracking-tighter">
                                 "To bring all art forms under one roof, making Medai truly a Stage for All."
                             </p>

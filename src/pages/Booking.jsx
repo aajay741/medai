@@ -2,9 +2,46 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useState, useEffect, useRef } from 'react'
 import confetti from 'canvas-confetti'
 
+const VENUE_SLOTS = {
+    'CHENNAI': [
+        { code: 'C1', range: '07:00 AM – 10:00 AM', duration: '3 Hours', price: 15000, total: 17700 },
+        { code: 'C2', range: '11:00 AM – 02:00 PM', duration: '3 Hours', price: 15000, total: 17700 },
+        { code: 'C3', range: '03:00 PM – 06:00 PM', duration: '3 Hours', price: 15000, total: 17700 },
+        { code: 'C4', range: '07:00 PM – 10:00 PM', duration: '3 Hours', price: 15000, total: 17700 },
+    ],
+    'BENGALURU': [
+        { code: 'B1', range: '03:00 PM – 09:00 PM', duration: '6 Hours', price: 45000, total: 53100 },
+        { code: 'B2', range: '08:00 AM – 02:00 PM', duration: '6 Hours', price: 45000, total: 53100 },
+    ],
+    'COIMBATORE': [
+        { code: 'CB1', range: '08:00 AM – 02:00 PM', duration: '6 Hours', price: 30000, total: 35400 },
+        { code: 'CB2', range: '03:00 PM – 09:00 PM', duration: '6 Hours', price: 30000, total: 35400 },
+    ]
+}
+
 export default function Booking({ isOpen, onClose, initialLocation = '' }) {
     const [step, setStep] = useState(1)
     const [direction, setDirection] = useState(1)
+    const [allEvents, setAllEvents] = useState([])
+    const [isLoadingEvents, setIsLoadingEvents] = useState(false)
+    const [bookingData, setBookingData] = useState({
+        location: '',
+        show: '',
+        date: '',
+        date_full: '',
+        time: '',
+        slot_code: '',
+        duration: '',
+        price: 0,
+        total: 0,
+        tickets: 1,
+        name: '',
+        email: '',
+        phone: ''
+    })
+    const [formErrors, setFormErrors] = useState({})
+    const [isSubmitting, setIsSubmitting] = useState(false)
+    const [bookingResponse, setBookingResponse] = useState(null)
 
     useEffect(() => {
         if (step === 6) {
@@ -28,14 +65,18 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
             }, 250);
         }
     }, [step])
-    const [allEvents, setAllEvents] = useState([])
-    const [isLoadingEvents, setIsLoadingEvents] = useState(false)
+
 
     useEffect(() => {
         const fetchEvents = async () => {
             setIsLoadingEvents(true)
             try {
                 const response = await fetch('/backend/api/events.php')
+                const contentType = response.headers.get('content-type')
+                if (!contentType || !contentType.includes('application/json')) {
+                    console.warn('Events API did not return JSON. Is the PHP backend running?')
+                    return
+                }
                 const data = await response.json()
                 if (data.success) {
                     setAllEvents(data.data)
@@ -49,27 +90,59 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
         if (isOpen) fetchEvents()
     }, [isOpen])
 
-    const locations = Array.from(new Set(allEvents.map(e => e.location))).map(loc => {
-        const event = allEvents.find(e => e.location === loc)
-        return {
-            id: loc.toLowerCase().replace(/\s+/g, '-'),
-            name: loc.toUpperCase(),
-            venue: event.venue_name || 'MEDAI Space'
+    const defaultLocations = [
+        { id: 'chennai', name: 'CHENNAI', venue: 'MEDAI Space' },
+        { id: 'bengaluru', name: 'BENGALURU', venue: 'MEDAI Space' },
+        { id: 'coimbatore', name: 'COIMBATORE', venue: 'MEDAI Space' }
+    ]
+
+    const locations = allEvents.length > 0
+        ? Array.from(new Set(allEvents.filter(e => e.location).map(e => e.location))).map(loc => {
+            const event = allEvents.find(e => e.location === loc)
+            return {
+                id: String(loc).toLowerCase().replace(/\s+/g, '-'),
+                name: String(loc).toUpperCase(),
+                venue: event?.venue_name || 'MEDAI Space'
+            }
+        })
+        : defaultLocations
+
+    const selectedLocation = (bookingData.location || '').toUpperCase()
+
+    const shows = [
+        { id: 'space-booking', title: 'Space Booking', price: 'Varies', type: 'virtual' },
+        ...Array.from(new Set(allEvents
+            .filter(e => e.location && String(e.location).toUpperCase() === selectedLocation)
+            .map(e => e.title)
+        )).map((title, i) => {
+            const event = allEvents.find(e => e.title === title && e.location && String(e.location).toUpperCase() === selectedLocation)
+            const minPrice = event?.ticket_types ? Math.min(...event.ticket_types.map(t => parseInt(t.price))) : 499
+            return { id: `s${i}`, title: title, price: `₹${minPrice}` }
+        })
+    ]
+
+    // Fallback dates if no events exist
+    const generateFallbackDates = () => {
+        const fallbacks = []
+        const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
+        const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
+
+        for (let i = 0; i < 7; i++) {
+            const d = new Date()
+            d.setDate(d.getDate() + i)
+            fallbacks.push({
+                day: days[d.getDay()],
+                num: d.getDate().toString(),
+                month: months[d.getMonth()],
+                full: d.toISOString().split('T')[0]
+            })
         }
-    })
+        return fallbacks
+    }
 
-    const shows = Array.from(new Set(allEvents
-        .filter(e => e.location.toUpperCase() === bookingData.location.toUpperCase())
-        .map(e => e.title)
-    )).map((title, i) => {
-        const event = allEvents.find(e => e.title === title && e.location.toUpperCase() === bookingData.location.toUpperCase())
-        const minPrice = event.ticket_types ? Math.min(...event.ticket_types.map(t => parseInt(t.price))) : 499
-        return { id: `s${i}`, title: title, price: `₹${minPrice}` }
-    })
-
-    const dates = Array.from(new Set(allEvents
+    const eventDates = Array.from(new Set(allEvents
         .filter(e =>
-            e.location.toUpperCase() === bookingData.location.toUpperCase() &&
+            e.location && String(e.location).toUpperCase() === selectedLocation &&
             e.title === bookingData.show
         )
         .map(e => e.event_date)
@@ -85,27 +158,21 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
         }
     })
 
-    const times = allEvents
-        .filter(e =>
-            e.location.toUpperCase() === bookingData.location.toUpperCase() &&
-            e.title === bookingData.show &&
-            e.event_date === bookingData.date_full
-        )
-        .map(e => e.event_time)
+    const dates = (bookingData.show === 'Space Booking' || eventDates.length === 0)
+        ? generateFallbackDates()
+        : eventDates
 
-    const [bookingData, setBookingData] = useState({
-        location: '',
-        show: '',
-        date: '',
-        date_full: '',
-        time: '',
-        tickets: 1,
-        name: '',
-        email: '',
-        phone: ''
-    })
+    const times = bookingData.show === 'Space Booking'
+        ? (VENUE_SLOTS[selectedLocation] || []).map(s => s.range)
+        : allEvents
+            .filter(e =>
+                e.location && String(e.location).toUpperCase() === selectedLocation &&
+                e.title === bookingData.show &&
+                e.event_date === bookingData.date_full
+            )
+            .map(e => e.event_time)
 
-    const [formErrors, setFormErrors] = useState({})
+
 
     useEffect(() => {
         if (isOpen) {
@@ -135,6 +202,40 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
         }
         setDirection(1)
         setStep(s => Math.min(s + 1, 6))
+    }
+
+    const handleBooking = async () => {
+        setIsSubmitting(true)
+        try {
+            const response = await fetch('/backend/api/bookings.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: bookingData.name,
+                    email: bookingData.email,
+                    phone: bookingData.phone,
+                    location: bookingData.location,
+                    showTitle: bookingData.show,
+                    eventDate: bookingData.date_full,
+                    eventTime: bookingData.time,
+                    ticketType: bookingData.show === 'Space Booking' ? 'Space Rental' : 'General Admission',
+                    quantity: bookingData.tickets,
+                    specialRequests: bookingData.slot_code ? `Slot: ${bookingData.slot_code} (${bookingData.duration})` : ''
+                })
+            })
+            const data = await response.json()
+            if (data.success) {
+                setBookingResponse(data.data)
+                nextStep()
+            } else {
+                alert(data.message || 'Transmission failed. Try again.')
+            }
+        } catch (err) {
+            console.error('Booking Error:', err)
+            alert('Neural connection loss. Please check your network.')
+        } finally {
+            setIsSubmitting(false)
+        }
     }
     const prevStep = () => {
         setDirection(-1)
@@ -312,7 +413,7 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                             className={`w-full p-6 rounded-[2rem] border text-left transition-all duration-700 flex items-center justify-between group ${bookingData.show === show.title ? 'bg-[#A78BFA] border-[#A78BFA] text-black' : 'bg-white/5 border-white/5 hover:border-[#A78BFA]/30'}`}
                                         >
                                             <div className="flex flex-col">
-                                                <span className={`text-[9px] font-black tracking-[0.4em] uppercase mb-1 ${bookingData.show === show.title ? 'text-black/40' : 'text-[#A78BFA]'}`}>Program</span>
+                                                <span className={`text-[9px] font-black tracking-[0.4em] uppercase mb-1 ${bookingData.show === show.title ? 'text-black/40' : 'text-[#A78BFA]'}`}>{show.id === 'space-booking' ? 'Rental' : 'Program'}</span>
                                                 <div className="text-xl font-black uppercase tracking-tighter">{show.title}</div>
                                             </div>
                                             <div className="text-xl font-black italic">{show.price}</div>
@@ -358,16 +459,39 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                     </div>
 
                                     {/* Time Selection */}
-                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                        {times.map((t, i) => (
-                                            <button
-                                                key={i}
-                                                onClick={() => setBookingData(prev => ({ ...prev, time: t }))}
-                                                className={`p-4 rounded-full border text-center transition-all duration-700 text-sm font-black tracking-widest ${bookingData.time === t ? 'bg-[#A78BFA] border-[#A78BFA] text-black' : 'bg-white/5 border-white/5 hover:border-[#A78BFA]/30'}`}
-                                            >
-                                                {t}
-                                            </button>
-                                        ))}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        {times.map((t, i) => {
+                                            const slot = bookingData.show === 'Space Booking'
+                                                ? (VENUE_SLOTS[selectedLocation] || []).find(s => s.range === t)
+                                                : null
+
+                                            return (
+                                                <button
+                                                    key={i}
+                                                    onClick={() => {
+                                                        if (slot) {
+                                                            setBookingData(prev => ({
+                                                                ...prev,
+                                                                time: t,
+                                                                slot_code: slot.code,
+                                                                duration: slot.duration,
+                                                                price: slot.price,
+                                                                total: slot.total
+                                                            }))
+                                                        } else {
+                                                            setBookingData(prev => ({ ...prev, time: t, price: 799, total: 799 }))
+                                                        }
+                                                    }}
+                                                    className={`p-6 rounded-[1.5rem] border text-left transition-all duration-700 ${bookingData.time === t ? 'bg-[#A78BFA] border-[#A78BFA] text-black' : 'bg-white/5 border-white/5 hover:border-[#A78BFA]/30'}`}
+                                                >
+                                                    <div className="flex flex-col">
+                                                        {slot && <span className={`text-[8px] font-black tracking-widest mb-1 ${bookingData.time === t ? 'text-black/40' : 'text-[#A78BFA]/60'}`}>Slot {slot.code} • {slot.duration}</span>}
+                                                        <span className="text-sm font-black tracking-widest">{t}</span>
+                                                        {slot && <span className="text-[10px] font-bold italic mt-2 opacity-60">Total: ₹{slot.total}</span>}
+                                                    </div>
+                                                </button>
+                                            )
+                                        })}
                                     </div>
                                 </div>
 
@@ -490,7 +614,9 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                         </div>
                                         <div className="space-y-1">
                                             <span className="text-[8px] font-black tracking-[0.5em] text-[#A78BFA] uppercase block mb-1">Investment</span>
-                                            <div className="text-xl font-black text-[#A78BFA] italic">₹{bookingData.tickets * 799}</div>
+                                            <div className="text-xl font-black text-[#A78BFA] italic">
+                                                ₹{bookingData.show === 'Space Booking' ? bookingData.total : bookingData.tickets * (bookingData.price || 799)}
+                                            </div>
                                         </div>
                                     </div>
                                     {/* Abstract Ticket Notch Decoration */}
@@ -499,8 +625,27 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                 </div>
 
                                 <div className="flex flex-col md:flex-row gap-4">
-                                    <button onClick={prevStep} className="flex-1 py-5 border border-white/5 rounded-full text-[10px] font-black tracking-[0.4em] uppercase text-white/40 hover:text-white transition-all">Modify Data</button>
-                                    <button onClick={nextStep} className="flex-[2] py-5 bg-[#A78BFA] text-black rounded-full text-[10px] font-black tracking-[0.5em] uppercase hover:scale-[1.02] transition-all shadow-3xl">Commit Connection</button>
+                                    <button
+                                        onClick={prevStep}
+                                        disabled={isSubmitting}
+                                        className="flex-1 py-5 border border-white/5 rounded-full text-[10px] font-black tracking-[0.4em] uppercase text-white/40 hover:text-white transition-all disabled:opacity-50"
+                                    >
+                                        Modify Data
+                                    </button>
+                                    <button
+                                        onClick={handleBooking}
+                                        disabled={isSubmitting}
+                                        className="flex-[2] py-5 bg-[#A78BFA] text-black rounded-full text-[10px] font-black tracking-[0.5em] uppercase hover:scale-[1.02] transition-all shadow-3xl flex items-center justify-center gap-3 disabled:opacity-50"
+                                    >
+                                        {isSubmitting ? (
+                                            <>
+                                                <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+                                                Transmitting...
+                                            </>
+                                        ) : (
+                                            "Commit Connection"
+                                        )}
+                                    </button>
                                 </div>
                             </motion.div>
                         )}
@@ -536,7 +681,7 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                     {/* Left Sidebar - Ticket Number */}
                                     <div className="w-8 md:w-12 lg:w-16 bg-black flex items-center justify-center border-r border-white/10 relative z-10">
                                         <span className="text-white/80 text-[8px] md:text-xs font-medium tracking-widest uppercase -rotate-90 whitespace-nowrap">
-                                            Ticket Number : {Math.random().toString().slice(2, 12)}
+                                            Ticket Number : {bookingResponse?.bookingReference || 'TRANSMITTING...'}
                                         </span>
                                     </div>
 
@@ -646,6 +791,15 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                         </div>
                                     </div>
                                 </div>
+
+                                {bookingResponse?.zohoInvoiceId && (
+                                    <div className="flex flex-col items-center gap-2">
+                                        <div className="text-[9px] font-black tracking-[0.4em] text-[#A78BFA] opacity-60 uppercase italic">Invoicing Synchronized</div>
+                                        <div className="px-4 py-2 rounded-full border border-[#A78BFA]/20 bg-[#A78BFA]/5 text-[10px] font-black tracking-widest text-[#A78BFA] uppercase">
+                                            Zoho ID: {bookingResponse.zohoInvoiceId}
+                                        </div>
+                                    </div>
+                                )}
 
                                 <div className="flex flex-col md:flex-row gap-3 justify-center pt-2 w-full max-w-sm">
                                     <button

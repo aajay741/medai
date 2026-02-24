@@ -7,19 +7,19 @@ export default function Venues({ onBookClick }) {
         {
             city: "CHENNAI",
             capacity: "120 Seater",
-            description: "Theatre, classical dance, contemporary acts, indie music, stand-up",
+            description: "An intimate black box ideal for theatre, classical dance, contemporary acts, indie music and stand-up.",
             image: "https://images.unsplash.com/photo-1513106580091-1d82408b8cd6?q=80&w=2070"
         },
         {
             city: "BENGALURU",
             capacity: "170 Seater",
-            description: "Festivals, comedy, concerts, indie bands, experimental showcases",
+            description: "A flexible performance venue suited for mid-scale productions, festivals, comedy and concerts.",
             image: "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=2070"
         },
         {
             city: "COIMBATORE",
             capacity: "220 Seater",
-            description: "Large dance shows, theatre, cultural programs, live music concerts",
+            description: "A spacious and modern venue perfect for large dance shows, theatre, cultural programs and live music.",
             image: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=2070"
         }
     ]
@@ -33,8 +33,9 @@ export default function Venues({ onBookClick }) {
                     viewport={{ once: true }}
                     transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
                 >
-                    <span className="text-xs md:text-sm font-black tracking-[0.6em] text-[#A78BFA] block mb-4 md:mb-6 uppercase opacity-80">03 / The Network</span>
-                    <h2 className="text-4xl md:text-6xl font-black tracking-tighter uppercase">Locations.</h2>
+                    <span className="text-xs md:text-sm font-black tracking-[0.6em] text-[#A78BFA] block mb-4 md:mb-6 uppercase opacity-80">03 / Our Venues</span>
+                    <h2 className="text-4xl md:text-6xl font-black tracking-tighter uppercase">Our Venues.</h2>
+                    <p className="mt-4 text-white/50 text-sm md:text-base max-w-xs">Three distinctive black box spaces, each with its own character and cultural context.</p>
                 </motion.div>
                 <motion.div
                     initial={{ opacity: 0, x: 30 }}
@@ -95,7 +96,6 @@ function VenueCard({ venue, index, onBookClick }) {
                             MEDAI <br /><span className="text-[#A78BFA]/90 italic">{venue.city}</span>
                         </h3>
                     </motion.div>
-
                 </div>
 
                 <div className="space-y-10 group-hover:translate-y-[-10px] transition-transform duration-700 ease-[0.16,1,0.3,1]">
@@ -125,7 +125,7 @@ function VenueCard({ venue, index, onBookClick }) {
                         transition={{ delay: 1.1 + index * 0.1, duration: 1 }}
                         className="pt-8 border-t border-white/5 flex items-center justify-between overflow-hidden"
                     >
-                        <span className="text-[10px] font-black tracking-[0.6em] uppercase text-[#A78BFA] opacity-60 group-hover:opacity-100 group-hover:tracking-[0.8em] transition-all duration-700">Access Details</span>
+                        <span className="text-[10px] font-black tracking-[0.6em] uppercase text-[#A78BFA] opacity-60 group-hover:opacity-100 group-hover:tracking-[0.8em] transition-all duration-700">Book This Space</span>
                         <motion.div
                             whileHover={{ scale: 1.1, rotate: 45 }}
                             className="w-14 h-14 rounded-full border border-white/10 flex items-center justify-center bg-white/5 group-hover:bg-[#A78BFA] group-hover:text-black transition-all duration-500 shadow-2xl"
