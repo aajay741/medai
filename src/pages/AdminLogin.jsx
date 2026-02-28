@@ -94,13 +94,6 @@ export default function AdminLogin() {
                             {loading ? 'Logging in...' : 'Login'}
                         </button>
                     </form>
-
-                    {/* Default Credentials Info */}
-                    <div className="mt-6 p-4 bg-[#A78BFA]/10 border border-[#A78BFA]/30 rounded-lg">
-                        <p className="text-xs text-white/50 text-center">
-                            Default: <span className="text-[#A78BFA]">admin</span> / <span className="text-[#A78BFA]">admin123</span>
-                        </p>
-                    </div>
                 </div>
             </motion.div>
         </div>

@@ -5,7 +5,7 @@ import DomeGallerySection from '../sections/DomeGallerySection'
 import Footer from '../components/Footer'
 import { motion } from 'framer-motion'
 
-export default function GalleryPage() {
+export default function GalleryPage({ tier = 2, isMobile = false }) {
     return (
         <motion.div
             initial={{ opacity: 0 }}
@@ -14,16 +14,16 @@ export default function GalleryPage() {
             className="bg-[#030303]"
         >
             <div id="gallery-main">
-                <Gallery />
+                <Gallery tier={tier} isMobile={isMobile} />
             </div>
             <div id="gallery-perspective">
-                <ArtistPerspective />
+                <ArtistPerspective tier={tier} isMobile={isMobile} />
             </div>
             <div id="gallery-archive">
                 <DomeGallerySection />
-                <VisualArchive />
+                <VisualArchive tier={tier} isMobile={isMobile} />
             </div>
-            <Footer />
+            <Footer tier={tier} isMobile={isMobile} />
         </motion.div>
     )
 }

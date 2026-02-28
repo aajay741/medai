@@ -1,9 +1,16 @@
-import { motion, useScroll, useTransform } from 'framer-motion'
-import { useRef } from 'react'
+import { motion, useScroll, useTransform, useInView } from 'framer-motion'
+import { useRef, useState, useEffect } from 'react'
 import ExperienceOrb from '../components/ExperienceOrb'
 
 export default function TheExperience() {
     const containerRef = useRef(null)
+    const isInView = useInView(containerRef, { margin: "200px" })
+    const [isMobile, setIsMobile] = useState(false)
+
+    useEffect(() => {
+        setIsMobile(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent))
+    }, [])
+
     const { scrollYProgress } = useScroll({
         target: containerRef,
         offset: ["start end", "end start"]
@@ -44,7 +51,7 @@ export default function TheExperience() {
 
                         {/* 3D Orb Visual Integration */}
                         <div className="w-full h-[400px] mb-12 relative hidden lg:block">
-                            <ExperienceOrb />
+                            {isInView && <ExperienceOrb isLowQuality={isMobile} />}
                         </div>
 
                         <p className="text-xl md:text-2xl text-white/70 leading-relaxed font-black italic mb-16 opacity-80">

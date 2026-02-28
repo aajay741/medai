@@ -1,7 +1,10 @@
 import { useRef, useEffect } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { Cylinder, Torus, Sphere } from '@react-three/drei'
+import { useLocation } from 'react-router-dom'
 import * as THREE from 'three'
+
+const isMobileGlobal = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
 
 function ScrollingSpotlight({ position = [0, 0, 0], color = "#FFD700", side = 'left' }) {
     const groupRef = useRef()
@@ -47,12 +50,12 @@ function ScrollingSpotlight({ position = [0, 0, 0], color = "#FFD700", side = 'l
     return (
         <group ref={groupRef} position={position}>
             {/* Light Housing */}
-            <Cylinder args={[0.8, 1.2, 2, 16]} rotation={[Math.PI / 2, 0, 0]}>
+            <Cylinder args={[0.8, 1.2, 2, 8]} rotation={[Math.PI / 2, 0, 0]}>
                 <meshStandardMaterial color="#222" metalness={0.9} roughness={0.1} />
             </Cylinder>
 
             {/* Lens */}
-            <Cylinder args={[0.7, 0.7, 0.2, 32]} position={[0, 0, 1.1]} rotation={[Math.PI / 2, 0, 0]}>
+            <Cylinder args={[0.7, 0.7, 0.2, 16]} position={[0, 0, 1.1]} rotation={[Math.PI / 2, 0, 0]}>
                 <meshStandardMaterial
                     color={color}
                     emissive={color}
@@ -65,7 +68,7 @@ function ScrollingSpotlight({ position = [0, 0, 0], color = "#FFD700", side = 'l
             {/* Light Beam */}
             <Cylinder
                 ref={beamRef}
-                args={[0.7, 8, 40, 32]}
+                args={[0.7, 8, 40, 12]}
                 position={[0, 0, 21]}
                 rotation={[Math.PI / 2, 0, 0]}
             >
@@ -77,28 +80,37 @@ function ScrollingSpotlight({ position = [0, 0, 0], color = "#FFD700", side = 'l
                 />
             </Cylinder>
 
-            {/* Mounting Bracket */}
-            <Torus args={[0.5, 0.1, 8, 16]} position={[0, 0, -1]} rotation={[0, Math.PI / 2, 0]}>
-                <meshStandardMaterial color="#333" metalness={0.8} roughness={0.2} />
-            </Torus>
+            {!isMobileGlobal && (
+                <>
+                    {/* Mounting Bracket */}
+                    <Torus args={[0.5, 0.1, 6, 12]} position={[0, 0, -1]} rotation={[0, Math.PI / 2, 0]}>
+                        <meshStandardMaterial color="#333" metalness={0.8} roughness={0.2} />
+                    </Torus>
 
-            {/* Point Light */}
-            <pointLight position={[0, 0, 2]} color={color} intensity={2} distance={50} decay={2} />
-
-            {/* Glow effect */}
-            <Sphere args={[1, 16, 16]} position={[0, 0, 1]}>
-                <meshBasicMaterial color={color} transparent opacity={0.1} />
-            </Sphere>
+                    {/* Point Light */}
+                    <pointLight position={[0, 0, 2]} color={color} intensity={1.5} distance={30} decay={2} />
+                </>
+            )}
         </group>
     )
 }
 
-export default function GlobalSpotlights() {
+export default function GlobalSpotlights({ tier = 2 }) {
+    // Only render spotlights on home page to save resources on other pages
+    const location = useLocation()
+    const isHomePage = location.pathname === '/'
+    const isLowTier = tier === 0
+    const isMidTier = tier === 1
+
+    if (!isHomePage && (isMobileGlobal || isLowTier)) return null
+
     return (
-        <div className="fixed inset-0 pointer-events-none z-50" style={{ mixBlendMode: 'screen' }}>
+        <div className="fixed inset-0 pointer-events-none z-50" style={{ mixBlendMode: 'screen', opacity: (isMobileGlobal || isLowTier) ? 0.4 : 0.8 }}>
             <Canvas
                 camera={{ position: [0, 0, 30], fov: 50 }}
                 style={{ pointerEvents: 'none' }}
+                gl={{ antialias: tier > 1 && !isMobileGlobal, powerPreference: 'high-performance' }}
+                dpr={isMobileGlobal || isLowTier ? 0.8 : 1}
             >
                 <ambientLight intensity={0.2} />
 
@@ -107,6 +119,7 @@ export default function GlobalSpotlights() {
                     position={[-15, 10, -10]}
                     color="#FFD700"
                     side="left"
+                    tier={tier}
                 />
 
                 {/* Right Spotlight - Pink */}
@@ -114,14 +127,17 @@ export default function GlobalSpotlights() {
                     position={[15, 10, -10]}
                     color="#FF69B4"
                     side="right"
+                    tier={tier}
                 />
 
-                {/* Center Spotlight - Purple */}
-                <ScrollingSpotlight
-                    position={[0, 15, -15]}
-                    color="#A78BFA"
-                    side="center"
-                />
+                {!isMobileGlobal && !isLowTier && (
+                    <ScrollingSpotlight
+                        position={[0, 15, -15]}
+                        color="#A78BFA"
+                        side="center"
+                        tier={tier}
+                    />
+                )}
             </Canvas>
         </div>
     )

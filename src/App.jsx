@@ -2,6 +2,9 @@ import { useEffect, useRef, useState, useMemo } from 'react'
 import Lenis from 'lenis'
 import { Routes, Route, useLocation } from 'react-router-dom'
 import gsap from 'gsap'
+// Optimize GSAP for global smoothness
+gsap.ticker.fps(60);
+gsap.ticker.lagSmoothing(1000, 16);
 
 import CanvasWrapper from './components/CanvasWrapper'
 import Booking from './pages/Booking'
@@ -22,7 +25,10 @@ import AdminEvents from './pages/AdminEvents'
 import AdminGallery from './pages/AdminGallery'
 import LocationsPage from './pages/LocationsPage'
 
+import { usePerformance } from './hooks/usePerformance'
+
 export default function App() {
+    const { tier, isMobile } = usePerformance()
     const location = useLocation()
     const scrollProgressRef = useRef(0)
     const scrollIndicatorRef = useRef(null)
@@ -37,7 +43,9 @@ export default function App() {
     const [initialLocation, setInitialLocation] = useState('')
 
     const handleOpenBooking = (location = '') => {
-        setInitialLocation(location)
+        // Defensive: if called from an event handler, 'location' will be the event object
+        const loc = typeof location === 'string' ? location : ''
+        setInitialLocation(loc)
         setIsBookingOpen(true)
     }
 
@@ -54,14 +62,15 @@ export default function App() {
 
     useEffect(() => {
         const lenis = new Lenis({
-            duration: 2.2,
+            duration: isMobile ? 1.0 : 1.5,
             easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
             orientation: 'vertical',
             gestureOrientation: 'vertical',
             smoothWheel: true,
             wheelMultiplier: 1.0,
-            lerp: 0.035,
-            touchMultiplier: 2,
+            lerp: 0.1, // Faster lerp for mobile feel
+            touchMultiplier: isMobile ? 1.2 : 1.5,
+            syncTouch: !isMobile, // Disable syncTouch on mobile for better native feel
             infinite: false,
         })
 
@@ -103,16 +112,24 @@ export default function App() {
             duration: 2,
             ease: "expo.out",
             onUpdate: () => {
-                // Update scrollProgressRef to reflect the ongoing transition
                 scrollProgressRef.current = baseProgressRef.current + (localProgressRef.current * config.weight)
             }
         })
 
-        // Scroll to top on route change
-        if (lenisRef.current) {
+        // Intelligent Scroller: Handle hashes or top
+        const hash = location.hash
+        if (hash) {
+            const target = document.querySelector(hash)
+            if (target && lenisRef.current) {
+                // Wait slightly for DOM stability in SPAs
+                setTimeout(() => {
+                    lenisRef.current.scrollTo(target, { offset: 0, duration: 2 })
+                }, 100)
+            }
+        } else if (lenisRef.current) {
             lenisRef.current.scrollTo(0, { immediate: true })
         }
-    }, [location.pathname, routeConfig])
+    }, [location.pathname, location.hash, routeConfig])
 
     // Global Scroll to Top Listener
     useEffect(() => {
@@ -129,36 +146,38 @@ export default function App() {
 
     return (
         <main className="relative bg-[#030303]">
-            <CustomCursor />
+            {!isMobile && <CustomCursor tier={tier} />}
 
-            {/* noise overlay */}
-            <div className="fixed inset-0 pointer-events-none z-[100] opacity-[0.03] grayscale transition-opacity bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
+            {/* noise overlay - Conditional on tier */}
+            {tier > 1 && !isMobile && (
+                <div className="fixed inset-0 pointer-events-none z-[100] opacity-[0.03] grayscale transition-opacity bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
+            )}
 
             {/* 3D Core - Shared Background */}
             <div className="fixed inset-0 z-0 pointer-events-none">
-                <CanvasWrapper scrollProgressRef={scrollProgressRef} />
+                <CanvasWrapper scrollProgressRef={scrollProgressRef} tier={tier} />
             </div>
 
-            {/* Global Spotlights - Follow Scroll on All Pages */}
-            <GlobalSpotlights />
+            {/* Global Spotlights - Follow Scroll on All Pages - Disabled on Mobile */}
+            {!isMobile && <GlobalSpotlights tier={tier} />}
 
             {/* Persistent Branded Header */}
-            <Header onBookClick={() => handleOpenBooking()} />
+            <Header onBookClick={() => handleOpenBooking()} tier={tier} isMobile={isMobile} />
 
             {/* Multi-Page Routes */}
             <div className="relative z-10 w-full">
                 <Routes location={location}>
-                    <Route path="/" element={<Home onBookClick={handleOpenBooking} />} />
+                    <Route path="/" element={<Home onBookClick={handleOpenBooking} tier={tier} isMobile={isMobile} />} />
                     <Route path="/network" element={<NetworkPage />} />
-                    <Route path="/spaces" element={<SpacesPage onBookClick={handleOpenBooking} />} />
+                    <Route path="/spaces" element={<SpacesPage onBookClick={handleOpenBooking} tier={tier} isMobile={isMobile} />} />
                     <Route path="/experience" element={<ExperiencePage />} />
-                    <Route path="/gallery" element={<GalleryPage />} />
+                    <Route path="/gallery" element={<GalleryPage tier={tier} isMobile={isMobile} />} />
                     <Route path="/contact" element={<ContactPage />} />
                     <Route path="/admin/login" element={<AdminLogin />} />
                     <Route path="/admin/dashboard" element={<AdminDashboard />} />
                     <Route path="/admin/events" element={<AdminEvents />} />
                     <Route path="/admin/gallery" element={<AdminGallery />} />
-                    <Route path="/locations" element={<LocationsPage onBookClick={handleOpenBooking} />} />
+                    <Route path="/locations" element={<LocationsPage onBookClick={handleOpenBooking} tier={tier} isMobile={isMobile} />} />
                 </Routes>
             </div>
 

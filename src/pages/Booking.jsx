@@ -4,12 +4,16 @@ import confetti from 'canvas-confetti'
 
 const VENUE_SLOTS = {
     'CHENNAI': [
-        { code: 'C1', range: '07:00 AM – 10:00 AM', duration: '3 Hours', price: 15000, total: 17700 },
+        { code: 'C1', range: '07:00 AM – 10:00 AM', duration: '3 Hours', price: 1, total: 1 },
         { code: 'C2', range: '11:00 AM – 02:00 PM', duration: '3 Hours', price: 15000, total: 17700 },
         { code: 'C3', range: '03:00 PM – 06:00 PM', duration: '3 Hours', price: 15000, total: 17700 },
         { code: 'C4', range: '07:00 PM – 10:00 PM', duration: '3 Hours', price: 15000, total: 17700 },
     ],
     'BENGALURU': [
+        { code: 'B1', range: '03:00 PM – 09:00 PM', duration: '6 Hours', price: 45000, total: 53100 },
+        { code: 'B2', range: '08:00 AM – 02:00 PM', duration: '6 Hours', price: 45000, total: 53100 },
+    ],
+    'BANGALORE': [
         { code: 'B1', range: '03:00 PM – 09:00 PM', duration: '6 Hours', price: 45000, total: 53100 },
         { code: 'B2', range: '08:00 AM – 02:00 PM', duration: '6 Hours', price: 45000, total: 53100 },
     ],
@@ -37,7 +41,14 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
         tickets: 1,
         name: '',
         email: '',
-        phone: ''
+        phone: '',
+        company_name: '',
+        gst_number: '',
+        billing_address: '',
+        city: '',
+        state: '',
+        zip: '',
+        purpose: ''
     })
     const [formErrors, setFormErrors] = useState({})
     const [isSubmitting, setIsSubmitting] = useState(false)
@@ -101,13 +112,13 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
             const event = allEvents.find(e => e.location === loc)
             return {
                 id: String(loc).toLowerCase().replace(/\s+/g, '-'),
-                name: String(loc).toUpperCase(),
+                name: String(loc).trim().toUpperCase(),
                 venue: event?.venue_name || 'MEDAI Space'
             }
         })
         : defaultLocations
 
-    const selectedLocation = (bookingData.location || '').toUpperCase()
+    const selectedLocation = (bookingData.location || '').trim().toUpperCase()
 
     const shows = [
         { id: 'space-booking', title: 'Space Booking', price: 'Varies', type: 'virtual' },
@@ -166,7 +177,7 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
         ? (VENUE_SLOTS[selectedLocation] || []).map(s => s.range)
         : allEvents
             .filter(e =>
-                e.location && String(e.location).toUpperCase() === selectedLocation &&
+                e.location && String(e.location).trim().toUpperCase() === selectedLocation &&
                 e.title === bookingData.show &&
                 e.event_date === bookingData.date_full
             )
@@ -177,7 +188,18 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
     useEffect(() => {
         if (isOpen) {
             if (initialLocation) {
-                setBookingData(prev => ({ ...prev, location: initialLocation, show: '', date: '', date_full: '', time: '' }))
+                setBookingData(prev => ({
+                    ...prev,
+                    location: initialLocation,
+                    show: 'Space Booking',
+                    date: '',
+                    date_full: '',
+                    time: '',
+                    slot_code: '',
+                    duration: '',
+                    price: 0,
+                    total: 0
+                }))
                 setStep(2)
             } else {
                 setBookingData(prev => ({ ...prev, location: '', show: '', date: '', date_full: '', time: '' }))
@@ -187,12 +209,16 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
     }, [isOpen, initialLocation])
 
     const nextStep = () => {
-        if (step === 4) {
+        if (step === 3) {
             // Validate personal info
             const errors = {}
             if (!bookingData.name) errors.name = 'Name required'
             if (!bookingData.email) errors.email = 'Email required'
             if (!bookingData.phone) errors.phone = 'Phone required'
+            if (!bookingData.billing_address) errors.billing_address = 'Address required'
+            if (!bookingData.zip) errors.zip = 'ZIP required'
+            if (!bookingData.city) errors.city = 'City required'
+            if (!bookingData.state) errors.state = 'State required'
 
             if (Object.keys(errors).length > 0) {
                 setFormErrors(errors)
@@ -201,38 +227,154 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
             setFormErrors({})
         }
         setDirection(1)
-        setStep(s => Math.min(s + 1, 6))
+        setStep(s => Math.min(s + 1, 5))
     }
 
     const handleBooking = async () => {
         setIsSubmitting(true)
         try {
-            const response = await fetch('/backend/api/bookings.php', {
+            // ── Step 1: Calculate total amount (paise for Razorpay) ──────────
+            const basePrice = bookingData.price || 799
+            const totalWithGst = Math.round(basePrice * bookingData.tickets * 1.18)
+            const amountInPaise = totalWithGst * 100
+
+            // ── Step 2: Create Razorpay Order on server ───────────────────────
+            const orderRes = await fetch('/backend/api/razorpay_order.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    name: bookingData.name,
-                    email: bookingData.email,
-                    phone: bookingData.phone,
-                    location: bookingData.location,
-                    showTitle: bookingData.show,
-                    eventDate: bookingData.date_full,
-                    eventTime: bookingData.time,
-                    ticketType: bookingData.show === 'Space Booking' ? 'Space Rental' : 'General Admission',
-                    quantity: bookingData.tickets,
-                    specialRequests: bookingData.slot_code ? `Slot: ${bookingData.slot_code} (${bookingData.duration})` : ''
+                    amount: amountInPaise,
+                    currency: 'INR',
+                    receipt: 'rcpt_' + Date.now(),
+                    notes: { name: bookingData.name, email: bookingData.email }
                 })
             })
-            const data = await response.json()
-            if (data.success) {
-                setBookingResponse(data.data)
-                nextStep()
-            } else {
-                alert(data.message || 'Transmission failed. Try again.')
+            const orderData = await orderRes.json()
+            if (!orderData.success) {
+                throw new Error(orderData.message || 'Could not create payment order.')
             }
+
+            const { order_id, key_id } = orderData.data
+
+            // ── Step 3: Open Razorpay Checkout ────────────────────────────────
+            await new Promise((resolve, reject) => {
+                const options = {
+                    key: key_id,
+                    amount: amountInPaise,
+                    currency: 'INR',
+                    name: 'MEDAI',
+                    description: `${bookingData.show} — ${bookingData.location}`,
+                    order_id: order_id,
+                    prefill: {
+                        name: bookingData.name,
+                        email: bookingData.email,
+                        contact: bookingData.phone
+                    },
+                    theme: { color: '#A78BFA' },
+                    modal: {
+                        ondismiss: () => reject(new Error('Payment cancelled by user.'))
+                    },
+                    handler: async (response) => {
+                        try {
+                            // ── Step 4: Verify payment & save booking ─────────────
+                            const verifyRes = await fetch('/backend/api/razorpay_verify.php', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    razorpay_order_id: response.razorpay_order_id,
+                                    razorpay_payment_id: response.razorpay_payment_id,
+                                    razorpay_signature: response.razorpay_signature,
+                                    // booking details
+                                    name: bookingData.name,
+                                    email: bookingData.email,
+                                    phone: bookingData.phone,
+                                    location: bookingData.location,
+                                    showTitle: bookingData.show,
+                                    eventDate: bookingData.date_full,
+                                    eventTime: bookingData.time,
+                                    ticketType: bookingData.show === 'Space Booking' ? 'Space Rental' : 'General Admission',
+                                    quantity: bookingData.tickets,
+                                    totalAmount: totalWithGst,
+                                    specialRequests: `Slot: ${bookingData.slot_code || 'N/A'} (${bookingData.duration || ''})`,
+                                    purpose: bookingData.purpose,
+                                    companyName: bookingData.company_name,
+                                    gstNumber: bookingData.gst_number,
+                                    billingAddress: bookingData.billing_address,
+                                    city: bookingData.city,
+                                    state: bookingData.state,
+                                    zip: bookingData.zip
+                                })
+                            })
+                            const verifyData = await verifyRes.json()
+                            if (verifyData.success) {
+                                // 1. Immediate UI update
+                                setBookingResponse(verifyData.data)
+                                setDirection(1)
+                                setStep(5)
+                                resolve()
+
+                                // 2. Background Zoho Invoice Generation (IMMEDIATE FEEL)
+                                fetch('/backend/api/generate_invoice.php', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ bookingReference: verifyData.data.bookingReference })
+                                })
+                                    .then(res => res.json())
+                                    .then(invData => {
+                                        if (invData.success) {
+                                            setBookingResponse(prev => ({ ...prev, ...invData.data }))
+                                        }
+                                    }).catch(e => console.warn('Invoice generation delayed:', e))
+
+                                // 3. Background WhatsApp/SMS notification
+                                fetch('/backend/api/send_notification.php', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        phone: bookingData.phone,
+                                        name: bookingData.name,
+                                        bookingRef: verifyData.data?.bookingReference,
+                                        location: bookingData.location,
+                                        eventDate: bookingData.date,
+                                        eventTime: bookingData.time,
+                                        totalAmount: totalWithGst,
+                                        invoiceUrl: verifyData.data?.zohoInvoiceUrl || ''
+                                    })
+                                }).catch(e => console.warn('Notification failed:', e))
+                            } else {
+                                reject(new Error(verifyData.message || 'Payment verification failed.'))
+                            }
+                        } catch (err) {
+                            reject(err)
+                        }
+                    }
+                }
+
+                // Load Razorpay SDK dynamically if not present
+                const loadAndOpen = () => {
+                    const rzp = new window.Razorpay(options)
+                    rzp.on('payment.failed', (resp) => {
+                        reject(new Error(resp.error?.description || 'Payment failed.'))
+                    })
+                    rzp.open()
+                }
+
+                if (window.Razorpay) {
+                    loadAndOpen()
+                } else {
+                    const script = document.createElement('script')
+                    script.src = 'https://checkout.razorpay.com/v1/checkout.js'
+                    script.onload = loadAndOpen
+                    script.onerror = () => reject(new Error('Could not load Razorpay SDK.'))
+                    document.body.appendChild(script)
+                }
+            })
+
         } catch (err) {
-            console.error('Booking Error:', err)
-            alert('Neural connection loss. Please check your network.')
+            console.error('Payment Error:', err)
+            if (err.message !== 'Payment cancelled by user.') {
+                alert(err.message || 'Payment failed. Please try again.')
+            }
         } finally {
             setIsSubmitting(false)
         }
@@ -323,34 +465,33 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                 className="relative w-full max-w-3xl glass border border-white/5 rounded-[3rem] p-6 md:p-12 shadow-[0_80px_160px_-40px_rgba(0,0,0,0.9)] z-10"
             >
                 {/* Header Section */}
-                <div className="flex justify-between items-start mb-10 relative">
-                    <div className="space-y-3">
+                <div className="flex justify-between items-start mb-8 relative">
+                    <div className="space-y-2">
                         <div className="flex items-center gap-4">
                             <span className="text-[9px] font-black tracking-[0.8em] text-[#A78BFA] uppercase">Step 0{step}</span>
-                            <div className="h-px w-16 bg-gradient-to-r from-[#A78BFA]/40 to-transparent" />
+                            <div className="h-px w-12 bg-gradient-to-r from-[#A78BFA]/40 to-transparent" />
                         </div>
-                        <h3 className="text-lg md:text-xl font-black text-white italic tracking-tighter uppercase">
-                            {step === 1 && "The Origin"}
-                            {step === 2 && "The Performance"}
-                            {step === 3 && "The Timing"}
-                            {step === 4 && "The Witness"}
-                            {step === 5 && "Review Signal"}
-                            {step === 6 && "Confirmed"}
+                        <h3 className="text-base md:text-lg font-black text-white italic tracking-tighter uppercase">
+                            {step === 1 && "The Venue"}
+                            {step === 2 && "The Timing"}
+                            {step === 3 && "The Identity"}
+                            {step === 4 && "The Preview"}
+                            {step === 5 && "Payment Confirmed"}
                         </h3>
                     </div>
 
                     <button
                         onClick={onClose}
-                        className="group p-4 rounded-full border border-white/5 bg-white/5 hover:bg-[#A78BFA] hover:text-black transition-all duration-700"
+                        className="group p-3 rounded-full border border-white/5 bg-white/5 hover:bg-[#A78BFA] hover:text-black transition-all duration-700"
                     >
-                        <svg className="w-4 h-4 group-hover:rotate-90 transition-transform duration-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className="w-3.5 h-3.5 group-hover:rotate-90 transition-transform duration-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
                 </div>
 
                 {/* Main Content Area */}
-                <div className="relative min-h-[380px]">
+                <div className="relative min-h-[300px]">
                     <AnimatePresence mode="wait" custom={direction}>
                         {step === 1 && (
                             <motion.div
@@ -360,28 +501,24 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                 initial="enter"
                                 animate="center"
                                 exit="exit"
-                                className="space-y-8"
+                                className="space-y-8 relative"
                             >
-                                <div className="space-y-3">
-                                    <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tighter leading-none">Choose <br /><span className="text-white/20 italic">The Hub.</span></h2>
-                                    <p className="text-white/50 text-sm md:text-lg font-medium italic">Our neural network of performance spaces.</p>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                     {locations.map(loc => (
                                         <button
                                             key={loc.id}
                                             onClick={() => {
-                                                setBookingData({ ...bookingData, location: loc.name })
-                                                nextStep()
+                                                setBookingData({ ...bookingData, location: loc.name, show: 'Space Booking' })
+                                                setStep(2)
                                             }}
-                                            className={`p-6 rounded-[2rem] border text-left transition-all duration-700 relative overflow-hidden group ${bookingData.location === loc.name ? 'bg-[#A78BFA] border-[#A78BFA] text-black' : 'bg-white/5 border-white/5 hover:border-[#A78BFA]/30'}`}
+                                            className={`p-8 rounded-[2.5rem] border text-left transition-all duration-700 relative overflow-hidden group ${bookingData.location === loc.name ? 'bg-[#A78BFA] border-[#A78BFA] text-black shadow-[0_20px_40px_rgba(167,139,250,0.2)]' : 'bg-white/5 border-white/5 hover:border-[#A78BFA]/30'}`}
                                         >
                                             <div className="relative z-10">
-                                                <div className={`text-[8px] font-black tracking-[0.4em] uppercase mb-3 ${bookingData.location === loc.name ? 'text-black/40' : 'text-[#A78BFA]'}`}>V-0{loc.id === 'chennai' ? 1 : loc.id === 'bengaluru' ? 2 : 3}</div>
-                                                <div className="text-xl font-black uppercase tracking-tighter mb-1">{loc.name}</div>
-                                                <div className="text-[10px] italic font-bold opacity-60">{loc.venue}</div>
+                                                <div className={`text-[9px] font-black tracking-[0.4em] uppercase mb-4 ${bookingData.location === loc.name ? 'text-black/40' : 'text-[#A78BFA]'}`}>Venue Hub</div>
+                                                <div className="text-2xl font-black uppercase tracking-tighter mb-1 leading-none">{loc.name}</div>
                                             </div>
-                                            <div className="absolute -bottom-3 -right-3 text-4xl font-black opacity-5 italic group-hover:opacity-10 transition-opacity uppercase">Hub</div>
+                                            <div className="absolute -bottom-4 -right-4 text-6xl font-black opacity-5 italic group-hover:opacity-10 transition-opacity uppercase -rotate-12">Stage</div>
                                         </button>
                                     ))}
                                 </div>
@@ -396,34 +533,97 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                 initial="enter"
                                 animate="center"
                                 exit="exit"
-                                className="space-y-8"
+                                className="space-y-8 relative"
                             >
-                                <div className="space-y-3">
-                                    <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tighter leading-none">Select <br /><span className="text-white/20 italic">Curated Show.</span></h2>
-                                    <p className="text-white/50 text-sm md:text-lg font-medium italic">Active frequencies in {bookingData.location}.</p>
+
+                                <div className="space-y-12">
+                                    {/* Date Selection */}
+                                    <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide px-2">
+                                        {dates.map((d, i) => (
+                                            <button
+                                                key={i}
+                                                onClick={() => setBookingData(prev => ({ ...prev, date: `${d.num} ${d.month}`, date_full: d.full, time: '' }))}
+                                                className={`flex-shrink-0 w-24 p-6 rounded-[2rem] border transition-all duration-700 flex flex-col items-center justify-center gap-1 ${bookingData.date === `${d.num} ${d.month}` ? 'bg-[#A78BFA] border-[#A78BFA] text-black shadow-[0_15px_30px_rgba(167,139,250,0.2)]' : 'bg-white/5 border-white/5 hover:border-[#A78BFA]/30'}`}
+                                            >
+                                                <span className={`text-[10px] font-black tracking-widest uppercase ${bookingData.date === `${d.num} ${d.month}` ? 'text-black/50' : 'text-[#A78BFA]/60'}`}>{d.month}</span>
+                                                <span className="text-3xl font-black tracking-tighter leading-none">{d.num}</span>
+                                                <span className={`text-[10px] font-black tracking-widest uppercase ${bookingData.date === `${d.num} ${d.month}` ? 'text-black/50' : 'text-white/40'}`}>{d.day}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    {/* Time Selection - Only if date is selected */}
+                                    <AnimatePresence mode="wait">
+                                        {bookingData.date && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: 20 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0, y: -10 }}
+                                                transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+                                                className="grid grid-cols-1 md:grid-cols-2 gap-6"
+                                            >
+                                                {times.map((t, i) => {
+                                                    const slot = bookingData.show === 'Space Booking'
+                                                        ? (VENUE_SLOTS[selectedLocation] || []).find(s => s.range === t)
+                                                        : null
+
+                                                    return (
+                                                        <button
+                                                            key={i}
+                                                            onClick={() => {
+                                                                if (slot) {
+                                                                    setBookingData(prev => ({
+                                                                        ...prev,
+                                                                        time: t,
+                                                                        slot_code: slot.code,
+                                                                        duration: slot.duration,
+                                                                        price: slot.price,
+                                                                        total: slot.total
+                                                                    }))
+                                                                } else {
+                                                                    setBookingData(prev => ({ ...prev, time: t, price: 799, total: 799 }))
+                                                                }
+                                                            }}
+                                                            className={`p-10 rounded-[2.5rem] border text-left transition-all duration-700 relative overflow-hidden group ${bookingData.time === t ? 'bg-[#A78BFA] border-[#A78BFA] text-black shadow-[0_20px_40px_rgba(167,139,250,0.2)]' : 'bg-white/5 border-white/5 hover:border-[#A78BFA]/30'}`}
+                                                        >
+                                                            <div className="relative z-10 flex flex-col gap-2">
+                                                                {slot && (
+                                                                    <div className={`text-[10px] font-black tracking-[0.3em] uppercase ${bookingData.time === t ? 'text-black/40' : 'text-[#A78BFA]'}`}>
+                                                                        Slot {slot.code} • {slot.duration}
+                                                                    </div>
+                                                                )}
+                                                                <div className="text-2xl font-black tracking-tighter uppercase leading-none">
+                                                                    {t}
+                                                                </div>
+                                                                {slot && (
+                                                                    <div className={`text-sm font-black italic mt-2 ${bookingData.time === t ? 'text-black/60' : 'text-white/40'}`}>
+                                                                        Total: ₹{slot.total}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            <div className="absolute top-0 right-0 p-8 h-full flex items-center justify-center opacity-0 group-hover:opacity-10 group-hover:translate-x-0 translate-x-4 transition-all duration-700">
+                                                                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                                                                </svg>
+                                                            </div>
+                                                        </button>
+                                                    )
+                                                })}
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
                                 </div>
-                                <div className="space-y-3">
-                                    {shows.map(show => (
-                                        <button
-                                            key={show.id}
-                                            onClick={() => {
-                                                setBookingData({ ...bookingData, show: show.title })
-                                                nextStep()
-                                            }}
-                                            className={`w-full p-6 rounded-[2rem] border text-left transition-all duration-700 flex items-center justify-between group ${bookingData.show === show.title ? 'bg-[#A78BFA] border-[#A78BFA] text-black' : 'bg-white/5 border-white/5 hover:border-[#A78BFA]/30'}`}
-                                        >
-                                            <div className="flex flex-col">
-                                                <span className={`text-[9px] font-black tracking-[0.4em] uppercase mb-1 ${bookingData.show === show.title ? 'text-black/40' : 'text-[#A78BFA]'}`}>{show.id === 'space-booking' ? 'Rental' : 'Program'}</span>
-                                                <div className="text-xl font-black uppercase tracking-tighter">{show.title}</div>
-                                            </div>
-                                            <div className="text-xl font-black italic">{show.price}</div>
-                                        </button>
-                                    ))}
+
+                                <div className="flex justify-between items-center pt-8 border-t border-white/5">
+                                    <button onClick={prevStep} className="text-white/40 hover:text-[#A78BFA] text-[10px] font-black tracking-[0.6em] uppercase transition-colors">BACK</button>
+                                    <button
+                                        disabled={!bookingData.date || !bookingData.time}
+                                        onClick={nextStep}
+                                        className="px-14 py-5 bg-[#A78BFA] text-black rounded-full text-[10px] font-extrabold tracking-[0.6em] uppercase hover:scale-105 transition-all disabled:opacity-10 shadow-[0_20px_40px_rgba(167,139,250,0.2)]"
+                                    >
+                                        CONTINUE
+                                    </button>
                                 </div>
-                                <button onClick={prevStep} className="group flex items-center gap-4 text-white/40 hover:text-[#A78BFA] transition-colors">
-                                    <div className="w-8 h-[1px] bg-current transition-all group-hover:w-12" />
-                                    <span className="text-[9px] font-black tracking-[0.4em] uppercase">Back</span>
-                                </button>
                             </motion.div>
                         )}
 
@@ -435,75 +635,147 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                 initial="enter"
                                 animate="center"
                                 exit="exit"
-                                className="space-y-8"
+                                className="space-y-8 relative"
                             >
-                                <div className="space-y-3">
-                                    <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tighter leading-none">Temporal <br /><span className="text-white/20 italic">Window.</span></h2>
-                                    <p className="text-white/50 text-sm md:text-lg font-medium italic">Align with our performance cycle.</p>
-                                </div>
 
-                                <div className="space-y-8">
-                                    {/* Date Selection */}
-                                    <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide">
-                                        {dates.map((d, i) => (
-                                            <button
-                                                key={i}
-                                                onClick={() => setBookingData(prev => ({ ...prev, date: `${d.num} ${d.month}`, date_full: d.full }))}
-                                                className={`flex-shrink-0 w-20 p-5 rounded-[1.5rem] border transition-all duration-700 flex flex-col items-center ${bookingData.date === `${d.num} ${d.month}` ? 'bg-[#A78BFA] border-[#A78BFA] text-black' : 'bg-white/5 border-white/5 hover:border-[#A78BFA]/30'}`}
-                                            >
-                                                <span className="text-[8px] font-black tracking-widest opacity-60 mb-1">{d.month}</span>
-                                                <span className="text-2xl font-black tracking-tighter leading-none mb-1">{d.num}</span>
-                                                <span className="text-[9px] font-black tracking-widest opacity-60">{d.day}</span>
-                                            </button>
-                                        ))}
-                                    </div>
+                                <div className="grid md:grid-cols-2 gap-6">
+                                    <div className="space-y-6">
+                                        <div className="group relative">
+                                            <label className="text-[12px] font-black tracking-[0.4em] text-[#A78BFA] uppercase mb-2 block transition-colors">Full Name</label>
+                                            <input
+                                                type="text"
+                                                value={bookingData.name}
+                                                onChange={(e) => setBookingData({ ...bookingData, name: e.target.value })}
+                                                className={`w-full bg-transparent border-b py-3 text-xl text-white focus:outline-none transition-all font-black placeholder:font-medium placeholder:text-white/20 uppercase ${formErrors.name ? 'border-red-500' : 'border-white/30 focus:border-[#A78BFA]'}`}
+                                                placeholder="Identity Name"
+                                            />
+                                        </div>
+                                        <div className="group relative">
+                                            <label className="text-[12px] font-black tracking-[0.4em] text-[#A78BFA] uppercase mb-2 block transition-colors">Email</label>
+                                            <input
+                                                type="email"
+                                                value={bookingData.email}
+                                                onChange={(e) => setBookingData({ ...bookingData, email: e.target.value })}
+                                                className={`w-full bg-transparent border-b py-3 text-xl text-white focus:outline-none transition-all font-black placeholder:font-medium placeholder:text-white/20 uppercase ${formErrors.email ? 'border-red-500' : 'border-white/30 focus:border-[#A711FA]'}`}
+                                                placeholder="Nexus@domain.com"
+                                            />
+                                        </div>
+                                        <div className="group relative">
+                                            <label className="text-[12px] font-black tracking-[0.4em] text-[#A78BFA] uppercase mb-2 block transition-colors">Contact</label>
+                                            <input
+                                                type="tel"
+                                                value={bookingData.phone}
+                                                onChange={(e) => {
+                                                    const value = e.target.value.replace(/[^0-9]/g, '');
+                                                    setBookingData({ ...bookingData, phone: value });
+                                                }}
+                                                className={`w-full bg-transparent border-b py-3 text-xl text-white focus:outline-none transition-all font-black placeholder:font-medium placeholder:text-white/20 uppercase ${formErrors.phone ? 'border-red-500' : 'border-white/30 focus:border-[#A78BFA]'}`}
+                                                placeholder="910000000000"
+                                            />
+                                        </div>
 
-                                    {/* Time Selection */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                        {times.map((t, i) => {
-                                            const slot = bookingData.show === 'Space Booking'
-                                                ? (VENUE_SLOTS[selectedLocation] || []).find(s => s.range === t)
-                                                : null
-
-                                            return (
+                                        <div className="group relative">
+                                            <label className="text-[12px] font-black tracking-[0.4em] text-[#A78BFA] uppercase mb-4 block transition-colors">Slot Count</label>
+                                            <div className="flex items-center gap-6 bg-white/5 border border-white/10 w-fit p-2 rounded-2xl">
                                                 <button
-                                                    key={i}
-                                                    onClick={() => {
-                                                        if (slot) {
-                                                            setBookingData(prev => ({
-                                                                ...prev,
-                                                                time: t,
-                                                                slot_code: slot.code,
-                                                                duration: slot.duration,
-                                                                price: slot.price,
-                                                                total: slot.total
-                                                            }))
-                                                        } else {
-                                                            setBookingData(prev => ({ ...prev, time: t, price: 799, total: 799 }))
-                                                        }
-                                                    }}
-                                                    className={`p-6 rounded-[1.5rem] border text-left transition-all duration-700 ${bookingData.time === t ? 'bg-[#A78BFA] border-[#A78BFA] text-black' : 'bg-white/5 border-white/5 hover:border-[#A78BFA]/30'}`}
+                                                    onClick={() => setBookingData(prev => ({ ...prev, tickets: Math.max(1, prev.tickets - 1) }))}
+                                                    className="w-10 h-10 rounded-xl bg-white/10 hover:bg-[#A78BFA] hover:text-black transition-all flex items-center justify-center font-black text-xl"
                                                 >
-                                                    <div className="flex flex-col">
-                                                        {slot && <span className={`text-[8px] font-black tracking-widest mb-1 ${bookingData.time === t ? 'text-black/40' : 'text-[#A78BFA]/60'}`}>Slot {slot.code} • {slot.duration}</span>}
-                                                        <span className="text-sm font-black tracking-widest">{t}</span>
-                                                        {slot && <span className="text-[10px] font-bold italic mt-2 opacity-60">Total: ₹{slot.total}</span>}
-                                                    </div>
+                                                    -
                                                 </button>
-                                            )
-                                        })}
+                                                <span className="text-2xl font-black w-12 text-center text-white">{bookingData.tickets}</span>
+                                                <button
+                                                    onClick={() => setBookingData(prev => ({ ...prev, tickets: Math.min(10, prev.tickets + 1) }))}
+                                                    className="w-10 h-10 rounded-xl bg-white/10 hover:bg-[#A78BFA] hover:text-black transition-all flex items-center justify-center font-black text-xl"
+                                                >
+                                                    +
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div className="group relative">
+                                            <label className="text-[12px] font-black tracking-[0.4em] text-[#A78BFA] uppercase mb-2 block transition-colors">Purpose of Booking</label>
+                                            <input
+                                                type="text"
+                                                value={bookingData.purpose}
+                                                onChange={(e) => setBookingData({ ...bookingData, purpose: e.target.value })}
+                                                className="w-full bg-transparent border-b border-white/30 py-3 text-xl text-white focus:outline-none focus:border-[#A78BFA] transition-all font-black placeholder:font-medium placeholder:text-white/20 uppercase"
+                                                placeholder="e.g. Workshop, Training"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-6">
+                                        <div className="group relative">
+                                            <label className="text-[12px] font-black tracking-[0.4em] text-[#A78BFA] uppercase mb-2 block transition-colors">Billing Address</label>
+                                            <textarea
+                                                rows="1"
+                                                value={bookingData.billing_address}
+                                                onChange={(e) => setBookingData({ ...bookingData, billing_address: e.target.value })}
+                                                className={`w-full bg-transparent border-b py-3 text-xl text-white focus:outline-none transition-all font-black placeholder:font-medium placeholder:text-white/20 uppercase resize-none ${formErrors.billing_address ? 'border-red-500' : 'border-white/30 focus:border-[#A78BFA]'}`}
+                                                placeholder="Street & Area"
+                                            />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="group relative">
+                                                <label className="text-[12px] font-black tracking-[0.4em] text-[#A78BFA] uppercase mb-2 block transition-colors">City</label>
+                                                <input
+                                                    type="text"
+                                                    value={bookingData.city}
+                                                    onChange={(e) => setBookingData({ ...bookingData, city: e.target.value })}
+                                                    className={`w-full bg-transparent border-b py-3 text-xl text-white focus:outline-none transition-all font-black placeholder:font-medium placeholder:text-white/20 uppercase ${formErrors.city ? 'border-red-500' : 'border-white/30 focus:border-[#A78BFA]'}`}
+                                                    placeholder="City"
+                                                />
+                                            </div>
+                                            <div className="group relative">
+                                                <label className="text-[12px] font-black tracking-[0.4em] text-[#A78BFA] uppercase mb-2 block transition-colors">Zip Code</label>
+                                                <input
+                                                    type="text"
+                                                    value={bookingData.zip}
+                                                    onChange={(e) => {
+                                                        const value = e.target.value.replace(/[^0-9]/g, '');
+                                                        setBookingData({ ...bookingData, zip: value });
+                                                    }}
+                                                    className={`w-full bg-transparent border-b py-3 text-xl text-white focus:outline-none transition-all font-black placeholder:font-medium placeholder:text-white/20 uppercase ${formErrors.zip ? 'border-red-500' : 'border-white/30 focus:border-[#A78BFA]'}`}
+                                                    placeholder="600001"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="group relative">
+                                            <label className="text-[12px] font-black tracking-[0.4em] text-[#A78BFA] uppercase mb-2 block transition-colors">State</label>
+                                            <input
+                                                type="text"
+                                                value={bookingData.state}
+                                                onChange={(e) => setBookingData({ ...bookingData, state: e.target.value })}
+                                                className={`w-full bg-transparent border-b py-3 text-xl text-white focus:outline-none transition-all font-black placeholder:font-medium placeholder:text-white/20 uppercase ${formErrors.state ? 'border-red-500' : 'border-white/30 focus:border-[#A78BFA]'}`}
+                                                placeholder="State"
+                                            />
+                                        </div>
+                                        <div className="group relative">
+                                            <label className="text-[12px] font-black tracking-[0.4em] text-[#A78BFA] uppercase mb-2 block transition-colors">Company Name (Optional)</label>
+                                            <input
+                                                type="text"
+                                                value={bookingData.company_name}
+                                                onChange={(e) => setBookingData({ ...bookingData, company_name: e.target.value })}
+                                                className="w-full bg-transparent border-b border-white/30 py-3 text-xl text-white focus:outline-none focus:border-[#A78BFA] transition-all font-black placeholder:font-medium placeholder:text-white/20 uppercase"
+                                                placeholder="Nexus Corp"
+                                            />
+                                        </div>
+                                        <div className="group relative">
+                                            <label className="text-[12px] font-black tracking-[0.4em] text-[#A78BFA] uppercase mb-2 block transition-colors">GST Number (Optional)</label>
+                                            <input
+                                                type="text"
+                                                value={bookingData.gst_number}
+                                                onChange={(e) => setBookingData({ ...bookingData, gst_number: e.target.value })}
+                                                className="w-full bg-transparent border-b border-white/30 py-3 text-xl text-white focus:outline-none focus:border-[#A78BFA] transition-all font-black placeholder:font-medium placeholder:text-white/20 uppercase"
+                                                placeholder="33AAAAA0000A1Z5"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
 
                                 <div className="flex justify-between items-center pt-6 border-t border-white/5">
-                                    <button onClick={prevStep} className="text-white/40 hover:text-[#A78BFA] text-[9px] font-black tracking-[0.4em] uppercase transition-colors">Back</button>
-                                    <button
-                                        disabled={!bookingData.date || !bookingData.time}
-                                        onClick={nextStep}
-                                        className="px-10 py-4 bg-[#A78BFA] text-black rounded-full text-[10px] font-black tracking-[0.4em] uppercase hover:scale-105 transition-all disabled:opacity-20 shadow-3xl"
-                                    >
-                                        Continue
-                                    </button>
+                                    <button onClick={prevStep} className="text-white/40 hover:text-[#A78BFA] text-[9px] font-black tracking-[0.4em] uppercase">Back</button>
+                                    <button onClick={nextStep} className="px-10 py-4 bg-[#A78BFA] text-black rounded-full text-[10px] font-black tracking-[0.4em] uppercase hover:scale-105 transition-all shadow-3xl">Review Pass</button>
                                 </div>
                             </motion.div>
                         )}
@@ -516,112 +788,84 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                 initial="enter"
                                 animate="center"
                                 exit="exit"
-                                className="space-y-8"
+                                className="space-y-8 relative"
                             >
-                                <div className="space-y-3">
-                                    <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tighter leading-none">Witness <br /><span className="text-white/20 italic">Identity.</span></h2>
-                                    <p className="text-white/50 text-sm md:text-lg font-medium italic">We need your signal parameters.</p>
-                                </div>
 
-                                <div className="grid md:grid-cols-2 gap-6">
-                                    <div className="space-y-6">
-                                        <div className="group relative">
-                                            <label className="text-[9px] font-black tracking-[0.4em] text-[#A78BFA]/60 uppercase mb-2 block group-focus-within:text-[#A78BFA] transition-colors">Full Name</label>
-                                            <input
-                                                type="text"
-                                                value={bookingData.name}
-                                                onChange={(e) => setBookingData({ ...bookingData, name: e.target.value })}
-                                                className={`w-full bg-transparent border-b py-3 text-xl text-white focus:outline-none transition-all font-black placeholder:text-white/5 uppercase ${formErrors.name ? 'border-red-500' : 'border-white/10 focus:border-[#A78BFA]'}`}
-                                                placeholder="Identity Name"
-                                            />
+                                <div className="glass border border-white/10 rounded-[2.5rem] p-8 md:p-12 relative overflow-hidden group">
+                                    {/* Header Section */}
+                                    <div className="flex justify-between items-start mb-6 pb-6 border-b border-white/10">
+                                        <div className="space-y-2">
+                                            <div className="text-[9px] font-black tracking-[0.3em] text-[#A78BFA] uppercase opacity-70">Booking ID</div>
+                                            <div className="text-xl font-black text-white font-mono uppercase">MED-{Math.random().toString(36).substring(2, 8).toUpperCase()}</div>
                                         </div>
-                                        <div className="group relative">
-                                            <label className="text-[9px] font-black tracking-[0.4em] text-[#A78BFA]/60 uppercase mb-2 block group-focus-within:text-[#A78BFA] transition-colors">Email Frequency</label>
-                                            <input
-                                                type="email"
-                                                value={bookingData.email}
-                                                onChange={(e) => setBookingData({ ...bookingData, email: e.target.value })}
-                                                className={`w-full bg-transparent border-b py-3 text-xl text-white focus:outline-none transition-all font-black placeholder:text-white/5 uppercase ${formErrors.email ? 'border-red-500' : 'border-white/10 focus:border-[#A711FA]'}`}
-                                                placeholder="Nexus@domain.com"
-                                            />
-                                        </div>
-                                        <div className="group relative">
-                                            <label className="text-[9px] font-black tracking-[0.4em] text-[#A78BFA]/60 uppercase mb-2 block group-focus-within:text-[#A78BFA] transition-colors">Contact Wave</label>
-                                            <input
-                                                type="tel"
-                                                value={bookingData.phone}
-                                                onChange={(e) => setBookingData({ ...bookingData, phone: e.target.value })}
-                                                className={`w-full bg-transparent border-b py-3 text-xl text-white focus:outline-none transition-all font-black placeholder:text-white/5 uppercase ${formErrors.phone ? 'border-red-500' : 'border-white/10 focus:border-[#A78BFA]'}`}
-                                                placeholder="+91 00000 00000"
-                                            />
+                                        <div className="text-right space-y-1">
+                                            <div className="text-lg font-black text-white italic tracking-tighter uppercase">MEDAI</div>
+                                            <div className="text-[8px] font-bold text-white/30 uppercase tracking-widest">{bookingData.location} CENTER</div>
                                         </div>
                                     </div>
 
-                                    <div className="glass p-8 rounded-[2.5rem] border border-white/5 flex flex-col items-center justify-center space-y-6">
-                                        <span className="text-[9px] font-black tracking-[0.4em] text-[#A78BFA] uppercase">Capacity Count</span>
-                                        <div className="flex items-center gap-8">
-                                            <button onClick={() => setBookingData(d => ({ ...d, tickets: Math.max(1, d.tickets - 1) }))} className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center text-xl text-white hover:bg-[#A78BFA] hover:text-black transition-all">-</button>
-                                            <span className="text-5xl font-black italic text-white">{bookingData.tickets}</span>
-                                            <button onClick={() => setBookingData(d => ({ ...d, tickets: Math.min(10, d.tickets + 1) }))} className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center text-xl text-white hover:bg-[#A78BFA] hover:text-black transition-all">+</button>
-                                        </div>
-                                        <p className="text-[9px] font-bold italic text-white/30 text-center">Maximum 10 witnesses per connection.</p>
-                                    </div>
-                                </div>
-
-                                <div className="flex justify-between items-center pt-6 border-t border-white/5">
-                                    <button onClick={prevStep} className="text-white/40 hover:text-[#A78BFA] text-[9px] font-black tracking-[0.4em] uppercase">Back</button>
-                                    <button onClick={nextStep} className="px-10 py-4 bg-[#A78BFA] text-black rounded-full text-[10px] font-black tracking-[0.4em] uppercase hover:scale-105 transition-all shadow-3xl">Review Pass</button>
-                                </div>
-                            </motion.div>
-                        )}
-
-                        {step === 5 && (
-                            <motion.div
-                                key="step5"
-                                custom={direction}
-                                variants={stepVariants}
-                                initial="enter"
-                                animate="center"
-                                exit="exit"
-                                className="space-y-8"
-                            >
-                                <div className="space-y-3">
-                                    <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tighter leading-none">Review <br /><span className="text-white/20 italic">The Signal.</span></h2>
-                                    <p className="text-white/50 text-sm md:text-lg font-medium italic">Validate your manifest before commitment.</p>
-                                </div>
-
-                                <div className="glass border border-white/5 rounded-[2.5rem] p-8 relative overflow-hidden group">
-                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-8 relative z-10">
-                                        <div className="space-y-1">
-                                            <span className="text-[8px] font-black tracking-[0.5em] text-[#A78BFA] uppercase block mb-1">Witness</span>
-                                            <div className="text-lg font-black text-white uppercase">{bookingData.name}</div>
-                                        </div>
-                                        <div className="space-y-1">
-                                            <span className="text-[8px] font-black tracking-[0.5em] text-[#A78BFA] uppercase block mb-1">Hub</span>
-                                            <div className="text-lg font-black text-white uppercase">{bookingData.location}</div>
-                                        </div>
-                                        <div className="space-y-1">
-                                            <span className="text-[8px] font-black tracking-[0.5em] text-[#A78BFA] uppercase block mb-1">Temporal</span>
-                                            <div className="text-lg font-black text-white uppercase">{bookingData.date} @ {bookingData.time}</div>
-                                        </div>
-                                        <div className="space-y-1">
-                                            <span className="text-[8px] font-black tracking-[0.5em] text-[#A78BFA] uppercase block mb-1">Program</span>
-                                            <div className="text-lg font-black text-white uppercase">{bookingData.show}</div>
-                                        </div>
-                                        <div className="space-y-1">
-                                            <span className="text-[8px] font-black tracking-[0.5em] text-[#A78BFA] uppercase block mb-1">Count</span>
-                                            <div className="text-lg font-black text-white uppercase">{bookingData.tickets} Persons</div>
-                                        </div>
-                                        <div className="space-y-1">
-                                            <span className="text-[8px] font-black tracking-[0.5em] text-[#A78BFA] uppercase block mb-1">Investment</span>
-                                            <div className="text-xl font-black text-[#A78BFA] italic">
-                                                ₹{bookingData.show === 'Space Booking' ? bookingData.total : bookingData.tickets * (bookingData.price || 799)}
+                                    {/* Billing & Event Grid */}
+                                    <div className="grid md:grid-cols-2 gap-8 mb-8">
+                                        <div className="space-y-5">
+                                            <div className="space-y-1.5">
+                                                <span className="text-[8px] font-black tracking-[0.3em] text-[#A78BFA] uppercase block opacity-70">Client Details</span>
+                                                <div className="text-base font-black text-white uppercase">{bookingData.name}</div>
+                                                <div className="text-[11px] font-bold text-white/40">{bookingData.email}</div>
+                                                <div className="text-[11px] font-bold text-white/40">{bookingData.phone}</div>
                                             </div>
+                                            {(bookingData.company_name || bookingData.gst_number) && (
+                                                <div className="space-y-2 pt-2 border-t border-white/5">
+                                                    <span className="text-[9px] font-black tracking-[0.4em] text-[#A78BFA] uppercase block">Company Details</span>
+                                                    <div className="text-sm font-black text-white uppercase">{bookingData.company_name || 'Individual'}</div>
+                                                    {bookingData.gst_number && <div className="text-xs font-bold text-white/50 font-mono">GST: {bookingData.gst_number}</div>}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="space-y-5">
+                                            <div className="space-y-1.5">
+                                                <span className="text-[8px] font-black tracking-[0.3em] text-[#A78BFA] uppercase block opacity-70">Date & Time</span>
+                                                <div className="text-base font-black text-white uppercase">{bookingData.date}</div>
+                                                <div className="text-xs font-bold text-white/60">{bookingData.time}</div>
+                                            </div>
+                                            <div className="space-y-1.5 pt-2 border-t border-white/5">
+                                                <span className="text-[8px] font-black tracking-[0.3em] text-[#A78BFA] uppercase block opacity-70">Billing Address</span>
+                                                <div className="text-[11px] font-bold text-white/50 leading-tight uppercase">
+                                                    {bookingData.billing_address}<br />
+                                                    {bookingData.city}, {bookingData.state} - {bookingData.zip}
+                                                </div>
+                                            </div>
+                                            {bookingData.slot_code && (
+                                                <div className="space-y-1 pt-2 border-t border-white/5">
+                                                    <span className="text-[8px] font-black tracking-[0.3em] text-[#A78BFA] uppercase block opacity-70">Slot Statistics</span>
+                                                    <div className="text-[10px] font-black text-white uppercase tracking-widest">
+                                                        CODE: {bookingData.slot_code} • {bookingData.duration}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
-                                    {/* Abstract Ticket Notch Decoration */}
-                                    <div className="absolute top-1/2 left-0 -translate-x-1/2 w-6 h-12 bg-[#030303] rounded-full border-r border-white/5" />
-                                    <div className="absolute top-1/2 right-0 translate-x-1/2 w-6 h-12 bg-[#030303] rounded-full border-l border-white/5" />
+
+                                    {/* Financial Ledger */}
+                                    <div className="space-y-3 pt-8 border-t border-white/10 relative">
+                                        <div className="flex justify-between items-center px-2 py-1">
+                                            <span className="text-[9px] font-black tracking-widest text-white/40 uppercase">Base Price ({bookingData.tickets} Slot)</span>
+                                            <span className="text-base font-black text-white tracking-tight">₹{((bookingData.price || 799) * bookingData.tickets).toLocaleString()}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center px-2 py-1">
+                                            <span className="text-[9px] font-black tracking-widest text-[#A78BFA] uppercase">GST (18%)</span>
+                                            <span className="text-base font-black text-white tracking-tight">₹{Math.round(((bookingData.price || 799) * bookingData.tickets) * 0.18).toLocaleString()}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center pt-6 mt-2 border-t-2 border-dashed border-white/10 px-2 py-2">
+                                            <span className="text-xs font-black tracking-[0.4em] text-white uppercase italic">Final Total</span>
+                                            <span className="text-3xl font-black text-[#A78BFA] tracking-tighter leading-none glow-text">
+                                                ₹{Math.round(((bookingData.price || 799) * bookingData.tickets) * 1.18).toLocaleString()}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* Notch Decorations */}
+                                    <div className="absolute top-1/2 left-0 -translate-x-1/2 w-8 h-12 bg-[#030303] rounded-full border-r border-white/10" />
+                                    <div className="absolute top-1/2 right-0 translate-x-1/2 w-8 h-12 bg-[#030303] rounded-full border-l border-white/10" />
                                 </div>
 
                                 <div className="flex flex-col md:flex-row gap-4">
@@ -640,25 +884,30 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                         {isSubmitting ? (
                                             <>
                                                 <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin" />
-                                                Transmitting...
+                                                Processing...
                                             </>
                                         ) : (
-                                            "Commit Connection"
+                                            <>
+                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                                                </svg>
+                                                Pay ₹{Math.round((bookingData.price || 799) * bookingData.tickets * 1.18).toLocaleString()} via Razorpay
+                                            </>
                                         )}
                                     </button>
                                 </div>
                             </motion.div>
                         )}
 
-                        {step === 6 && (
+                        {step === 5 && (
                             <motion.div
-                                key="step6"
+                                key="step5"
                                 custom={direction}
                                 variants={stepVariants}
                                 initial="enter"
                                 animate="center"
                                 exit="exit"
-                                className="flex flex-col items-center py-2 space-y-6 w-full max-w-4xl"
+                                className="flex flex-col items-center py-2 space-y-6 w-full max-w-4xl relative"
                             >
                                 <div className="relative">
                                     <motion.div
@@ -698,13 +947,8 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                             {/* Top Text - Large Headings */}
                                             <div className="space-y-0 text-left">
                                                 <h1 className="text-lg md:text-3xl lg:text-5xl xl:text-6xl font-black text-white tracking-tighter leading-none uppercase max-w-[90%]">
-                                                    {bookingData.show ? bookingData.show.split(' ').slice(0, -1).join(' ') || 'REALLY GREAT' : 'REALLY GREAT'}
+                                                    {bookingData.show || 'MEDAI PERFORMANCE'}
                                                 </h1>
-                                                <div className="bg-white inline-block px-2 py-0.5 md:px-4 md:py-2 mt-1 md:mt-2">
-                                                    <h1 className="text-lg md:text-3xl lg:text-5xl xl:text-6xl font-black text-black tracking-tighter leading-none uppercase">
-                                                        {bookingData.show ? bookingData.show.split(' ').pop() : 'CONCERT'}
-                                                    </h1>
-                                                </div>
                                             </div>
 
                                             {/* Middle/Bottom Info Container */}
@@ -766,7 +1010,7 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                             {/* Vertical Text */}
                                             <div className="h-full flex items-center justify-center">
                                                 <span className="text-[10px] md:text-3xl font-black text-white tracking-[0.1em] -rotate-90 uppercase whitespace-nowrap opacity-90">
-                                                    ADMIT ONE
+                                                    ADMIT {bookingData.tickets} {bookingData.tickets > 1 ? 'SLOTS' : 'SLOT'}
                                                 </span>
                                             </div>
 
@@ -792,14 +1036,59 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                     </div>
                                 </div>
 
-                                {bookingResponse?.zohoInvoiceId && (
-                                    <div className="flex flex-col items-center gap-2">
-                                        <div className="text-[9px] font-black tracking-[0.4em] text-[#A78BFA] opacity-60 uppercase italic">Invoicing Synchronized</div>
-                                        <div className="px-4 py-2 rounded-full border border-[#A78BFA]/20 bg-[#A78BFA]/5 text-[10px] font-black tracking-widest text-[#A78BFA] uppercase">
-                                            Zoho ID: {bookingResponse.zohoInvoiceId}
+                                {/* Invoice Actions */}
+                                {bookingResponse?.zohoInvoiceId ? (
+                                    <div className="flex flex-col items-center gap-3 w-full animate-in fade-in duration-700">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                                            <div className="text-[9px] font-black tracking-[0.4em] text-green-400 uppercase italic">Invoice Generated</div>
+                                        </div>
+                                        <div className="flex gap-3 w-full max-w-sm">
+                                            {/* Download Invoice PDF */}
+                                            <a
+                                                href={bookingResponse.invoiceDownloadPath}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                download
+                                                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[#A78BFA] text-black rounded-2xl text-[9px] font-black tracking-[0.3em] uppercase hover:scale-105 transition-all shadow-[0_10px_30px_rgba(167,139,250,0.3)]"
+                                            >
+                                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                </svg>
+                                                Download Invoice
+                                            </a>
+                                            {/* View in Zoho Portal */}
+                                            {bookingResponse.zohoInvoiceUrl && (
+                                                <a
+                                                    href={bookingResponse.zohoInvoiceUrl}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 border border-[#A78BFA]/30 bg-[#A78BFA]/5 text-[#A78BFA] rounded-2xl text-[9px] font-black tracking-[0.3em] uppercase hover:scale-105 transition-all"
+                                                >
+                                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                                    </svg>
+                                                    View Invoice
+                                                </a>
+                                            )}
+                                        </div>
+                                        <div className="text-[8px] text-white/20 font-medium tracking-widest">
+                                            Invoice also sent to {bookingData.email}
                                         </div>
                                     </div>
-                                )}
+                                ) : bookingResponse ? (
+                                    <div className="flex flex-col items-center gap-2 py-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-4 h-4 rounded-full border-2 border-[#A78BFA]/20 border-t-[#A78BFA] animate-spin" />
+                                            <div className="text-[9px] font-black tracking-[0.3em] text-[#A78BFA] uppercase animate-pulse">
+                                                Finalizing Official Invoice...
+                                            </div>
+                                        </div>
+                                        <div className="text-[8px] text-white/20 font-medium tracking-widest text-center mt-1">
+                                            Please wait a moment while we synchronize with Zoho
+                                        </div>
+                                    </div>
+                                ) : null}
 
                                 <div className="flex flex-col md:flex-row gap-3 justify-center pt-2 w-full max-w-sm">
                                     <button
@@ -825,7 +1114,7 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                                 ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
                                                 ctx.font = '700 16px Arial';
                                                 ctx.textAlign = 'center';
-                                                ctx.fillText('TICKET NUMBER : ' + Math.random().toString().slice(2, 12), 0, 0);
+                                                ctx.fillText('TICKET NUMBER : ' + (bookingResponse?.bookingReference || 'MEDAI-XXXXXX'), 0, 0);
                                                 ctx.restore();
 
                                                 // Main Body Background
@@ -955,7 +1244,7 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                             qrImg.crossOrigin = "anonymous";
                                             qrImg.onload = checkAllLoaded;
                                             qrImg.onerror = checkAllLoaded; // Draw even if qr fails
-                                            qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=MEDAI-PASS-${bookingData.name}-${Date.now()}`;
+                                            qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=MEDAI-PASS-${bookingResponse?.bookingReference || bookingData.name}`;
                                         }}
                                         className="flex-1 flex items-center justify-center gap-3 px-6 py-4 bg-white text-black border border-white rounded-full group hover:bg-[#00f2ff] hover:text-black hover:border-[#00f2ff] transition-all transform hover:scale-105"
                                     >

@@ -31,14 +31,38 @@ try {
         $ticketType = sanitizeInput($input['ticketType']);
         $quantity = (int)$input['quantity'];
         $specialRequests = sanitizeInput($input['specialRequests'] ?? '');
+        $companyName = sanitizeInput($input['companyName'] ?? '');
+        $gstNumber = sanitizeInput($input['gstNumber'] ?? '');
+        $billingAddress = sanitizeInput($input['billingAddress'] ?? '');
+        $city = sanitizeInput($input['city'] ?? '');
+        $state = sanitizeInput($input['state'] ?? '');
+        $zipCode = sanitizeInput($input['zip'] ?? '');
+        $purpose = sanitizeInput($input['purpose'] ?? '');
+
+        if ($purpose) {
+            $specialRequests = "Purpose: $purpose. " . $specialRequests;
+        }
         
-        // Calculate total amount (example pricing)
-        $prices = [
-            'General Admission' => 500,
-            'VIP' => 1500,
-            'Premium' => 2500
-        ];
-        $totalAmount = ($prices[$ticketType] ?? 500) * $quantity;
+        // Calculate total amount based on user pricing table
+        $unitRate = 0;
+        if ($ticketType === 'Space Rental') {
+            $loc = strtoupper($location);
+            if ($loc === 'CHENNAI') $unitRate = 15000;
+            elseif ($loc === 'BANGALORE' || $loc === 'BENGALURU') $unitRate = 45000;
+            elseif ($loc === 'COIMBATORE') $unitRate = 30000;
+            else $unitRate = 15000;
+        } else {
+            $prices = [
+                'General Admission' => 799,
+                'VIP' => 1500,
+                'Premium' => 2500
+            ];
+            $unitRate = $prices[$ticketType] ?? 799;
+        }
+        
+        // Final Total = (Base Rate * Quantity) + 18% GST
+        $baseTotal = $unitRate * $quantity;
+        $totalAmount = round($baseTotal * 1.18);
         
         // Generate booking reference
         $bookingRef = generateBookingReference();
@@ -47,14 +71,17 @@ try {
         $stmt = $db->prepare("
             INSERT INTO bookings 
             (booking_reference, name, email, phone, location, event_date, event_time, 
-             ticket_type, quantity, total_amount, special_requests, booking_status, payment_status)
+             ticket_type, quantity, total_amount, special_requests, 
+             company_name, gst_number, billing_address, city, state, zip_code, purpose,
+             booking_status, payment_status)
             VALUES 
-            (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'confirmed', 'completed')
+            (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'confirmed', 'completed')
         ");
         
         $stmt->execute([
             $bookingRef, $name, $email, $phone, $location, $eventDate, 
-            $eventTime, $ticketType, $quantity, $totalAmount, $specialRequests
+            $eventTime, $ticketType, $quantity, $totalAmount, $specialRequests,
+            $companyName, $gstNumber, $billingAddress, $city, $state, $zipCode, $purpose
         ]);
 
         // Integrate Zoho Invoice
@@ -70,7 +97,13 @@ try {
             'event_time' => $eventTime,
             'ticket_type' => $ticketType,
             'quantity' => $quantity,
-            'price_per_unit' => $totalAmount / $quantity
+            'price_per_unit' => $unitRate,
+            'company_name' => $companyName,
+            'gst_number' => $gstNumber,
+            'billing_address' => $billingAddress,
+            'city' => $city,
+            'state' => $state,
+            'zip' => $zipCode
         ]);
 
         // Update booking with Zoho Invoice ID if needed

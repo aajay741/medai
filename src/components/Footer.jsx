@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 
-export default function Footer() {
+export default function Footer({ tier = 2 }) {
+    const isLowTier = tier === 0
     const quickLinks = ['Venues', 'Book a Venue', 'About', 'Gallery', 'Contact']
 
     const scrollTo = (id) => {
@@ -16,8 +17,10 @@ export default function Footer() {
 
     return (
         <footer className="relative pt-16 pb-12 px-6 bg-[#030303] z-20 overflow-hidden border-t border-[#A78BFA]/10">
-            {/* Cinematic Background Glow */}
-            <div className="absolute -bottom-24 left-1/2 -translate-x-1/2 w-[80vw] h-[40vh] bg-[#A78BFA]/[0.05] blur-[120px] rounded-full pointer-events-none" />
+            {/* Cinematic Background Glow - Only on mid and high tiers */}
+            {!isLowTier && (
+                <div className="absolute -bottom-24 left-1/2 -translate-x-1/2 w-[80vw] h-[40vh] bg-[#A78BFA]/[0.05] blur-[120px] rounded-full pointer-events-none" />
+            )}
 
             <div className="container mx-auto relative z-10">
                 <div className="grid lg:grid-cols-3 gap-16 md:gap-24 mb-20">

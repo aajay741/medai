@@ -1,7 +1,7 @@
 import { motion, useScroll, useTransform } from 'framer-motion'
 import { useRef } from 'react'
 
-export default function Venues({ onBookClick }) {
+export default function Venues({ onBookClick, tier = 2, isMobile = false }) {
     const containerRef = useRef(null)
     const venues = [
         {
@@ -25,7 +25,7 @@ export default function Venues({ onBookClick }) {
     ]
 
     return (
-        <section ref={containerRef} className="relative w-full py-12 md:py-24 mt-24 md:my-0 section-container overflow-hidden">
+        <section id="venues" ref={containerRef} className="relative w-full py-12 md:py-24 mt-24 md:my-0 section-container overflow-hidden">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-16 md:mb-24 border-b border-white/5 pb-10">
                 <motion.div
                     initial={{ opacity: 0, x: -30 }}
@@ -52,21 +52,22 @@ export default function Venues({ onBookClick }) {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-10 xl:gap-12">
                 {venues.map((venue, i) => (
-                    <VenueCard key={i} venue={venue} index={i} onBookClick={onBookClick} />
+                    <VenueCard key={i} venue={venue} index={i} onBookClick={onBookClick} tier={tier} isMobile={isMobile} />
                 ))}
             </div>
         </section>
     )
 }
 
-function VenueCard({ venue, index, onBookClick }) {
+function VenueCard({ venue, index, onBookClick, tier = 2, isMobile = false }) {
+    const isLowTier = tier === 0 || isMobile
     return (
         <motion.div
-            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            initial={isLowTier ? { opacity: 0 } : { opacity: 0, y: 50, scale: 0.9 }}
             whileInView={{ opacity: 1, y: 0, scale: 1 }}
             viewport={{ once: true }}
-            transition={{ delay: index * 0.1, duration: 1.5, ease: [0.16, 1, 0.3, 1] }}
-            whileHover={{ y: -10 }}
+            transition={{ delay: index * (isLowTier ? 0.05 : 0.1), duration: isLowTier ? 0.8 : 1.5, ease: [0.16, 1, 0.3, 1] }}
+            whileHover={isLowTier ? {} : { y: -10 }}
             onClick={() => onBookClick(venue.city)}
             className="group relative h-[450px] md:h-[600px] w-full rounded-[4rem] overflow-hidden glass border border-[#A78BFA]/10 shadow-3xl cursor-pointer transition-all duration-700"
         >
@@ -74,8 +75,8 @@ function VenueCard({ venue, index, onBookClick }) {
             <div className="absolute inset-0 z-0 bg-black">
                 <motion.img
                     src={venue.image}
-                    initial={{ scale: 1.2, filter: 'grayscale(100%) brightness(0.3)' }}
-                    whileHover={{ scale: 1.1, filter: 'grayscale(0%) brightness(0.6)' }}
+                    initial={{ scale: isLowTier ? 1 : 1.2, filter: 'grayscale(100%) brightness(0.3)' }}
+                    whileHover={isLowTier ? {} : { scale: 1.1, filter: 'grayscale(0%) brightness(0.6)' }}
                     transition={{ duration: 1.5, ease: [0.16, 1, 0.3, 1] }}
                     className="w-full h-full object-cover"
                     alt={venue.city}
@@ -87,7 +88,7 @@ function VenueCard({ venue, index, onBookClick }) {
             <div className="relative z-10 h-full p-10 flex flex-col justify-between">
                 <div className="flex justify-between items-start">
                     <motion.div
-                        initial={{ opacity: 0, x: -20 }}
+                        initial={isLowTier ? { opacity: 0 } : { opacity: 0, x: -20 }}
                         whileInView={{ opacity: 1, x: 0 }}
                         transition={{ delay: 0.5 + index * 0.1 }}
                         className="space-y-1"
@@ -98,10 +99,10 @@ function VenueCard({ venue, index, onBookClick }) {
                     </motion.div>
                 </div>
 
-                <div className="space-y-10 group-hover:translate-y-[-10px] transition-transform duration-700 ease-[0.16,1,0.3,1]">
+                <div className={`${isLowTier ? '' : 'group-hover:translate-y-[-10px]'} space-y-10 transition-transform duration-700 ease-[0.16,1,0.3,1]`}>
                     <div className="flex gap-10">
                         <motion.div
-                            initial={{ opacity: 0, y: 20 }}
+                            initial={isLowTier ? { opacity: 0 } : { opacity: 0, y: 20 }}
                             whileInView={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.8 + index * 0.1 }}
                         >
@@ -120,14 +121,14 @@ function VenueCard({ venue, index, onBookClick }) {
                     </motion.p>
 
                     <motion.div
-                        initial={{ opacity: 0, width: 0 }}
+                        initial={isLowTier ? { opacity: 0 } : { opacity: 0, width: 0 }}
                         whileInView={{ opacity: 1, width: '100%' }}
                         transition={{ delay: 1.1 + index * 0.1, duration: 1 }}
                         className="pt-8 border-t border-white/5 flex items-center justify-between overflow-hidden"
                     >
                         <span className="text-[10px] font-black tracking-[0.6em] uppercase text-[#A78BFA] opacity-60 group-hover:opacity-100 group-hover:tracking-[0.8em] transition-all duration-700">Book This Space</span>
                         <motion.div
-                            whileHover={{ scale: 1.1, rotate: 45 }}
+                            whileHover={isLowTier ? {} : { scale: 1.1, rotate: 45 }}
                             className="w-14 h-14 rounded-full border border-white/10 flex items-center justify-center bg-white/5 group-hover:bg-[#A78BFA] group-hover:text-black transition-all duration-500 shadow-2xl"
                         >
                             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">

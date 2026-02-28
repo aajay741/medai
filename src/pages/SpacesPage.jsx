@@ -3,7 +3,7 @@ import StageTechnology from '../sections/StageTechnology'
 import Footer from '../components/Footer'
 import { motion } from 'framer-motion'
 
-export default function SpacesPage({ onBookClick }) {
+export default function SpacesPage({ onBookClick, tier = 2, isMobile = false }) {
     return (
         <motion.div
             initial={{ opacity: 0 }}
@@ -12,12 +12,12 @@ export default function SpacesPage({ onBookClick }) {
             className="bg-[#030303]"
         >
             <div id="spaces-tech" className="pt-20">
-                <StageTechnology />
+                <StageTechnology tier={tier} isMobile={isMobile} />
             </div>
             <div id="spaces-benefits">
-                <BookingBenefits />
+                <BookingBenefits tier={tier} isMobile={isMobile} />
             </div>
-            <Footer />
+            <Footer tier={tier} isMobile={isMobile} />
         </motion.div>
     )
 }

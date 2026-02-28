@@ -9,10 +9,11 @@ const scrollToSection = (id) => {
     }
 }
 
-export default function Header({ onBookClick }) {
+export default function Header({ onBookClick, tier = 2, isMobile = false }) {
     const [isMenuOpen, setIsMenuOpen] = useState(false)
     const location = useLocation()
     const isHome = location.pathname === '/'
+    const isLowPerformance = tier < 2 || isMobile
 
     const toggleMenu = () => setIsMenuOpen(!isMenuOpen)
 
@@ -31,7 +32,6 @@ export default function Header({ onBookClick }) {
         } else {
             window.location.href = item.path
         }
-        window.dispatchEvent(new CustomEvent('scroll-to-top'))
     }
 
     const scrollToTop = () => {
@@ -43,11 +43,11 @@ export default function Header({ onBookClick }) {
             <motion.header
                 initial={{ y: -20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
-                transition={{ duration: 1.5, ease: [0.16, 1, 0.3, 1], delay: 0.5 }}
+                transition={{ duration: isMobile ? 0.8 : 1.5, ease: [0.16, 1, 0.3, 1], delay: 0.5 }}
                 className="fixed top-0 left-0 right-0 z-[100] pointer-events-none"
             >
                 {/* Premium Isolate Layer */}
-                <div className="absolute inset-0 bg-[#030303]/40 backdrop-blur-xl border-b border-white/[0.02] pointer-events-none" />
+                <div className={`absolute inset-0 bg-[#030303]/40 ${isMobile ? 'backdrop-blur-sm' : (isLowPerformance ? 'backdrop-blur-md' : 'backdrop-blur-xl')} border-b border-white/[0.02] pointer-events-none`} />
 
                 {/* Anchoring Horizon Line */}
                 <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-b from-black/80 via-black/20 to-transparent pointer-events-none" />
@@ -63,13 +63,13 @@ export default function Header({ onBookClick }) {
                         }}
                     >
                         <div className="flex items-center gap-4 md:gap-6">
-                            <span className="text-[16px] md:text-[22px] font-black tracking-[0.8em] md:tracking-[1em] text-white uppercase transition-all duration-700 group-hover/brand:tracking-[1.1em] group-hover/brand:text-[#A78BFA]">
+                            <span className="text-[20px] md:text-[22px] font-black tracking-[0.8em] md:tracking-[1em] text-white uppercase transition-all duration-700 group-hover/brand:tracking-[1.1em] group-hover/brand:text-[#A78BFA]">
                                 MEDAI
                             </span>
                             <div className="hidden md:block h-[2px] w-12 md:w-20 bg-[#A78BFA]/20 group-hover/brand:w-24 group-hover/brand:bg-[#A78BFA] transition-all duration-1000 ease-[0.16,1,0.3,1]" />
                         </div>
                         <div className="flex items-center gap-3 ml-1">
-                            <span className="text-[8px] md:text-[9px] font-black tracking-[0.5em] text-[#A78BFA] uppercase opacity-80">
+                            <span className="text-[10px] md:text-[9px] font-black tracking-[0.5em] text-[#A78BFA] uppercase opacity-80">
                                 The Stage
                             </span>
                         </div>
@@ -98,7 +98,7 @@ export default function Header({ onBookClick }) {
                             className="lg:hidden flex items-center gap-4 cursor-pointer"
                             onClick={toggleMenu}
                         >
-                            <span className="text-[10px] font-black tracking-[0.4em] uppercase text-[#A78BFA]">
+                            <span className="text-[12px] md:text-[10px] font-black tracking-[0.4em] uppercase text-[#A78BFA]">
                                 {isMenuOpen ? 'CLOSE' : 'MENU'}
                             </span>
                             <div className="flex flex-col gap-1.5 group/menu">
@@ -121,7 +121,7 @@ export default function Header({ onBookClick }) {
                         {/* Desktop CTA */}
                         <button
                             onClick={onBookClick}
-                            className="hidden md:block glass border border-[#A78BFA]/10 px-8 py-3.5 rounded-full text-[10px] md:text-[11px] font-black tracking-[0.6em] text-white uppercase hover:bg-[#A78BFA] hover:text-black transition-all duration-700 shadow-3xl group/btn overflow-hidden relative"
+                            className={`hidden md:block ${isLowPerformance ? '' : 'glass'} border border-[#A78BFA]/10 bg-black/40 backdrop-blur-md px-8 py-3.5 rounded-full text-[10px] md:text-[11px] font-black tracking-[0.6em] text-white uppercase hover:bg-[#A78BFA] hover:text-black transition-all duration-700 shadow-3xl group/btn overflow-hidden relative`}
                         >
                             <span className="relative z-10">Book Now</span>
                             <div className="absolute inset-0 bg-[#A78BFA] translate-y-full group-hover/btn:translate-y-0 transition-transform duration-700 ease-[0.16,1,0.3,1]" />
@@ -144,7 +144,7 @@ export default function Header({ onBookClick }) {
                         transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
                         className="fixed inset-0 z-[101] bg-[#030303] flex flex-col justify-center items-center pointer-events-auto"
                     >
-                        <div className="absolute inset-0 bg-[#A78BFA]/5 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20" />
+                        {tier > 1 && !isMobile && <div className="absolute inset-0 bg-[#A78BFA]/5 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20" />}
 
                         <nav className="flex flex-col items-center gap-12 relative z-10">
                             {menuItems.map((item, i) => (

@@ -10,18 +10,24 @@ export default function Spotlight({
     intensity = 2,
     angle = 0.5,
     penumbra = 0.5,
-    distance = 20
+    distance = 20,
+    tier = 2
 }) {
     const light = useRef()
     const targetObj = useRef(new THREE.Object3D())
+    const isLowTier = tier === 0
 
     useFrame(() => {
-        if (light.current) {
+        if (light.current && !isLowTier) {
             targetObj.current.position.set(...target)
             light.current.target = targetObj.current
             light.current.target.updateMatrixWorld()
         }
     })
+
+    if (isLowTier) return null // Save light computation on low tier
+
+    const adjustedIntensity = tier < 2 ? intensity * 0.5 : intensity
 
     return (
         <group>
@@ -30,14 +36,13 @@ export default function Spotlight({
                 ref={light}
                 position={position}
                 color={color}
-                intensity={intensity}
+                intensity={adjustedIntensity}
                 angle={angle}
                 penumbra={penumbra}
                 distance={distance}
                 attenuation={5}
                 anglePower={5}
             />
-            {/* Visual cone representation if needed, but 'LightBeam' covers that */}
         </group>
     )
 }

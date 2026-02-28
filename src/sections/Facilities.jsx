@@ -2,14 +2,17 @@ import { motion, useScroll, useTransform } from 'framer-motion'
 import { useRef } from 'react'
 import FacilityCore from '../components/FacilityCore'
 
-export default function Facilities() {
+export default function Facilities({ tier = 2, isMobile = false }) {
     const containerRef = useRef(null)
+    const isLowTier = tier === 0 || isMobile
+    const isMidTier = tier === 1 && !isMobile
+
     const { scrollYProgress } = useScroll({
         target: containerRef,
         offset: ["start end", "end start"]
     })
 
-    const bgY = useTransform(scrollYProgress, [0, 1], [100, -100])
+    const bgY = useTransform(scrollYProgress, [0, 1], isLowTier ? [0, 0] : [100, -100])
     const bgOpacity = useTransform(scrollYProgress, [0, 0.5, 1], [0, 0.04, 0])
 
     const facilities = [
@@ -25,26 +28,28 @@ export default function Facilities() {
 
     return (
         <section ref={containerRef} className="relative w-full pt-16 pb-12 md:py-24 border-t border-[#A78BFA]/5 overflow-hidden flex flex-col items-center bg-[#030303]">
-            {/* Background Heading - Cinematic Parallax */}
-            <motion.div
-                style={{ y: bgY, opacity: bgOpacity }}
-                className="absolute left-[5vw] top-1/2 pointer-events-none select-none z-0 hidden lg:block"
-            >
-                <h2 className="text-[15vw] font-black leading-[0.8] tracking-tighter uppercase text-white/5">
-                    BUILT<br />
-                    FOR<br />
-                    EXCELLENCE
-                </h2>
-            </motion.div>
+            {/* Background Heading - Cinematic Parallax - Disabled on mobile */}
+            {!isLowTier && !isMobile && (
+                <motion.div
+                    style={{ y: bgY, opacity: bgOpacity }}
+                    className="absolute left-[5vw] top-1/2 pointer-events-none select-none z-0 hidden lg:block"
+                >
+                    <h2 className="text-[15vw] font-black leading-[0.8] tracking-tighter uppercase text-white/5">
+                        BUILT<br />
+                        FOR<br />
+                        EXCELLENCE
+                    </h2>
+                </motion.div>
+            )}
 
             <div className="flex flex-col lg:grid lg:grid-cols-12 gap-16 lg:gap-24 items-center relative z-10 w-full max-w-7xl px-4 md:px-16 lg:px-24">
                 {/* Left Side: Summary Text */}
                 <div className="w-full lg:col-span-5 flex flex-col items-start">
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.95 }}
+                        initial={isLowTier ? { opacity: 0 } : { opacity: 0, scale: 0.95 }}
                         whileInView={{ opacity: 1, scale: 1 }}
                         viewport={{ once: true }}
-                        transition={{ duration: 1.2 }}
+                        transition={{ duration: isLowTier ? 0.8 : 1.2 }}
                         className="flex flex-col items-start text-left"
                     >
                         <span className="text-xs md:text-sm font-black tracking-[0.6em] text-[#A78BFA] block mb-8 md:mb-12 uppercase opacity-80">04 / Infrastructure</span>
@@ -54,9 +59,11 @@ export default function Facilities() {
                         </h2>
 
                         {/* 3D Facility Core Integration */}
-                        <div className="w-full h-[300px] my-12 relative hidden lg:block">
-                            <FacilityCore />
-                        </div>
+                        {!isLowTier && (
+                            <div className="w-full h-[300px] my-12 relative hidden lg:block">
+                                <FacilityCore tier={tier} />
+                            </div>
+                        )}
 
                         <div className="h-[2px] w-12 bg-[#A78BFA]/60 mb-12" />
                         <p className="text-xl md:text-2xl text-white/70 leading-relaxed font-black max-w-sm italic">
@@ -70,11 +77,11 @@ export default function Facilities() {
                     {facilities.map((item, i) => (
                         <motion.div
                             key={i}
-                            initial={{ opacity: 0, y: 30 }}
+                            initial={isLowTier ? { opacity: 0 } : { opacity: 0, y: 30 }}
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true }}
-                            transition={{ delay: i * 0.08, duration: 1, ease: "backOut" }}
-                            whileHover={{ y: -8, backgroundColor: "rgba(167, 139, 250, 0.05)" }}
+                            transition={{ delay: i * (isLowTier ? 0.03 : 0.05), duration: isLowTier ? 0.6 : 1, ease: "backOut" }}
+                            whileHover={isLowTier ? {} : { y: -8, backgroundColor: "rgba(167, 139, 250, 0.05)" }}
                             className="group glass p-8 md:p-10 rounded-[3rem] flex flex-col justify-between h-full border border-white/5 shadow-3xl transition-all duration-500 w-full relative overflow-hidden backdrop-blur-xl bg-white/[0.01]"
                         >
                             <div className="mb-6 w-14 h-14 rounded-2xl bg-[#A78BFA]/10 border border-[#A78BFA]/30 flex items-center justify-center group-hover:bg-[#A78BFA] group-hover:text-black transition-all duration-500">

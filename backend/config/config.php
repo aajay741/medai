@@ -1,26 +1,39 @@
 <?php
 // Database Configuration
 define('DB_HOST', 'localhost');
-define('DB_NAME', 'u891495087_medai');
-define('DB_USER', 'u891495087_medai');
-define('DB_PASS', 'Medai123@');
+define('DB_NAME', 'u891495087_medai_db1');
+define('DB_USER', 'u891495087_medai_db1');
+define('DB_PASS', 'Medai@12345');
 define('DB_CHARSET', 'utf8mb4');
 
 // Application Configuration
 define('APP_NAME', 'MEDAI Admin Panel');
-define('APP_URL', 'https://darkcyan-pig-525370.hostingersite.com/');
-define('ADMIN_EMAIL', 'admin@medai.in');
+define('APP_URL', 'https://medaithestage.com/');
+define('ADMIN_EMAIL', 'admin@medai.in'); 
+
+// Razorpay Payment Gateway
+define('RAZORPAY_KEY_ID', 'rzp_live_SLWf2Pz5BbSSBU');
+define('RAZORPAY_KEY_SECRET', 'R5AlXQSs4g5l3bqlSVuoRrkW');
+
+// MSG91 WhatsApp & SMS Notifications
+// Get your authkey from: https://msg91.com/dashboard
+define('MSG91_AUTH_KEY', '');           // e.g. '123456TxxxxxxBxxxxxxxx'
+define('MSG91_WHATSAPP_NUMBER', '');    // e.g. '91XXXXXXXXXX' (your MSG91 WhatsApp sender number)
+
+// Zoho GST Tax ID (official from Zoho dashboard)
+// Used for 18% GST in Indian orgs
+define('ZOHO_GST_TAX_ID', '3612443000000032469');
 
 // Zoho Invoice Configuration
-define('ZOHO_CLIENT_ID', 'YOUR_CLIENT_ID');
-define('ZOHO_CLIENT_SECRET', 'YOUR_CLIENT_SECRET');
-define('ZOHO_REFRESH_TOKEN', 'YOUR_REFRESH_TOKEN');
-define('ZOHO_ORGANIZATION_ID', 'YOUR_ORGANIZATION_ID');
-define('ZOHO_BASE_URL', 'https://www.zohoapis.com/invoice/v3');
-define('ZOHO_AUTH_URL', 'https://accounts.zoho.com/oauth/v2/token');
+define('ZOHO_CLIENT_ID', '1000.XQ50HCKP8BFWL4AWU97G0F13KUZ83B');
+define('ZOHO_CLIENT_SECRET', 'b55408aba8dca1316a9530a283e63ee5991a3ef89b');
+define('ZOHO_REFRESH_TOKEN', '1000.32b4ee49e49809f93639c8b8e1564277.cdd88d8a06c6e605510d13f95d4914a7');
+define('ZOHO_ORGANIZATION_ID', '60066256813');
+define('ZOHO_BASE_URL', 'https://www.zohoapis.in/invoice/v3');
+define('ZOHO_AUTH_URL', 'https://accounts.zoho.in/oauth/v2/token');
 
 // Security
-define('JWT_SECRET', 'your-secret-key-change-this-in-production'); // Change this!
+define('JWT_SECRET', 'd9f3a7c8e2b14f6a9c0d5e7b3a1f8c6d4e2a9b7c1d5f8a6e3b0c2d4f7a9e1c'); // Change this!
 define('SESSION_LIFETIME', 3600); // 1 hour in seconds
 
 // CORS Settings
@@ -28,6 +41,8 @@ define('ALLOWED_ORIGINS', [
     'http://localhost:5173',
     'http://localhost:3000',
     'http://localhost:5174',
+    'https://medaithestage.com',
+    'http://medaithestage.com',
     'https://darkturquoise-magpie-724295.hostingersite.com',
     'http://darkturquoise-magpie-724295.hostingersite.com',
     'https://darkcyan-pig-525370.hostingersite.com',
@@ -39,7 +54,7 @@ date_default_timezone_set('Asia/Kolkata');
 
 // Error Reporting (disable in production)
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+ini_set('display_errors', 0);
 
 // Database Connection Class
 class Database {
@@ -119,4 +134,11 @@ function sanitizeInput($data) {
 function generateBookingReference() {
     return 'MEDAI-' . strtoupper(substr(uniqid(), -8));
 }
-?>
+
+// Email (SMTP) Configuration
+define('SMTP_HOST', 'smtp.gmail.com');
+define('SMTP_PORT', 587);
+define('SMTP_USER', 'medaipvtltd@gmail.com');
+define('SMTP_PASS', ''); // TODO: USER NEEDS TO ADD GMAIL APP PASSWORD HERE
+define('SMTP_FROM', 'medaipvtltd@gmail.com');
+define('SMTP_FROM_NAME', 'MEDAI Hub');

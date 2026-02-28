@@ -8,7 +8,7 @@ export default defineConfig({
     open: true,
     proxy: {
       '/backend': {
-        target: 'http://localhost',
+        target: 'http://localhost/medai',
         changeOrigin: true,
       }
     }

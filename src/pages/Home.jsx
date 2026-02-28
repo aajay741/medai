@@ -9,7 +9,7 @@ import ContactSection from '../sections/ContactSection'
 import Footer from '../components/Footer'
 import { motion } from 'framer-motion'
 
-export default function Home({ onBookClick }) {
+export default function Home({ onBookClick, tier, isMobile }) {
     return (
         <motion.div
             initial={{ opacity: 0 }}
@@ -18,38 +18,38 @@ export default function Home({ onBookClick }) {
             className="bg-[#030303]"
         >
             <div id="hero">
-                <Hero onBookClick={onBookClick} />
+                <Hero onBookClick={onBookClick} tier={tier} isMobile={isMobile} />
             </div>
 
             <div id="stats">
-                <Stats />
+                <Stats tier={tier} isMobile={isMobile} />
             </div>
 
             <div id="about">
-                <Intro onBookClick={onBookClick} />
+                <Intro onBookClick={onBookClick} tier={tier} isMobile={isMobile} />
             </div>
 
             <div id="venues">
-                <Venues onBookClick={onBookClick} />
+                <Venues onBookClick={onBookClick} tier={tier} isMobile={isMobile} />
             </div>
 
             <div id="facilities">
-                <Facilities />
+                <Facilities tier={tier} isMobile={isMobile} />
             </div>
 
             <div id="gallery">
-                <Gallery />
+                <Gallery tier={tier} isMobile={isMobile} />
             </div>
 
             <div id="quote">
-                <Quote />
+                <Quote tier={tier} isMobile={isMobile} />
             </div>
 
             <div id="contact">
-                <ContactSection />
+                <ContactSection tier={tier} isMobile={isMobile} />
             </div>
 
-            <Footer />
+            <Footer tier={tier} isMobile={isMobile} />
         </motion.div>
     )
 }

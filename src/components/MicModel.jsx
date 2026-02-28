@@ -18,7 +18,7 @@ import SoundWave from './ThreeD/SoundWave'
 import AudienceSeats from './ThreeD/AudienceSeats'
 
 // THEATRICAL EXPERIENCE SYSTEM v2.0
-export default function MicModel({ scrollProgressRef }) {
+export default function MicModel({ scrollProgressRef, tier = 2 }) {
     const groupRef = useRef()
     const ringsRef = useRef()
 
@@ -105,26 +105,28 @@ export default function MicModel({ scrollProgressRef }) {
     return (
         <group ref={groupRef}>
             {elements.map((el, i) => (
-                <FloatStageElement key={i} element={el} scrollProgressRef={scrollProgressRef} />
+                <FloatStageElement key={i} element={el} scrollProgressRef={scrollProgressRef} tier={tier} />
             ))}
 
-            <group ref={ringsRef} position={[0, -250, -100]}>
-                {[...Array(10)].map((_, i) => (
-                    <Torus key={i} args={[200 + i * 80, 0.001, 12, 120]} rotation={[Math.PI / 2, 0, 0]}>
-                        <meshBasicMaterial color="#ffffff" transparent opacity={0.005} />
-                    </Torus>
-                ))}
-            </group>
+            {tier > 1 && (
+                <group ref={ringsRef} position={[0, -250, -100]}>
+                    {[...Array(tier === 2 ? 10 : 5)].map((_, i) => (
+                        <Torus key={i} args={[200 + i * 80, 0.001, 8, 80]} rotation={[Math.PI / 2, 0, 0]}>
+                            <meshBasicMaterial color="#ffffff" transparent opacity={0.005} />
+                        </Torus>
+                    ))}
+                </group>
+            )}
 
-            <PointsBuffer />
-            <EnergyFibers />
-            <ForegroundBokeh />
-            <StageGlobalBeams scrollProgressRef={scrollProgressRef} />
+            <PointsBuffer tier={tier} />
+            {tier > 0 && <EnergyFibers tier={tier} />}
+            {tier > 1 && <ForegroundBokeh tier={tier} />}
+            <StageGlobalBeams scrollProgressRef={scrollProgressRef} tier={tier} />
         </group>
     )
 }
 
-function FloatStageElement({ element, scrollProgressRef }) {
+function FloatStageElement({ element, scrollProgressRef, tier = 2 }) {
     const meshRef = useRef()
     const sectionIndex = element.stage
     const sectionStart = sectionIndex * (1 / 12)
@@ -243,7 +245,7 @@ function FloatStageElement({ element, scrollProgressRef }) {
                 {element.type === 'stagelight' && <StageLight position={[0, 0, 0]} color={element.color} intensity={1.5} />}
                 {element.type === 'curtain' && <Curtain position={[0, 0, 0]} open={false} />}
                 {element.type === 'soundwave' && <SoundWave position={[0, 0, 0]} color={element.color} />}
-                {element.type === 'audience' && <AudienceSeats position={[0, 0, 0]} rows={4} seatsPerRow={6} />}
+                {element.type === 'audience' && <AudienceSeats position={[0, 0, 0]} rows={tier === 0 ? 3 : 4} seatsPerRow={tier === 0 ? 5 : 6} tier={tier} />}
                 {element.type === 'pillar' && <Box args={[0.2, 400, 0.2]}><meshStandardMaterial color="#ffffff" transparent opacity={0.3} /></Box>}
                 {element.type === 'data_cluster' && (
                     <group>
@@ -266,8 +268,12 @@ function FloatStageElement({ element, scrollProgressRef }) {
                     </group>
                 )}
                 {element.type === 'super_core' && (
-                    <Sphere args={[4, 64, 64]}>
-                        <MeshDistortMaterial color="#ffffff" speed={3} distort={0.4} radius={1} transparent opacity={0.6} />
+                    <Sphere args={[4, tier === 0 ? 32 : 64, tier === 0 ? 32 : 64]}>
+                        {tier === 0 ? (
+                            <meshStandardMaterial color="#ffffff" transparent opacity={0.6} emissive="#ffffff" emissiveIntensity={0.5} />
+                        ) : (
+                            <MeshDistortMaterial color="#ffffff" speed={3} distort={0.4} radius={1} transparent opacity={0.6} />
+                        )}
                     </Sphere>
                 )}
                 {element.type === 'optical_assembly' && (
@@ -290,7 +296,7 @@ function FloatStageElement({ element, scrollProgressRef }) {
     )
 }
 
-function ForegroundBokeh() {
+function ForegroundBokeh({ tier = 2 }) {
     const count = 40
     const points = useMemo(() => {
         const p = new Float32Array(count * 3)
@@ -317,7 +323,7 @@ function ForegroundBokeh() {
     )
 }
 
-function EnergyFibers() {
+function EnergyFibers({ tier = 2 }) {
     const count = 5
     const fibers = useMemo(() => [...Array(count)].map(() => ({
         x: (Math.random() - 0.5) * 150,
@@ -334,13 +340,13 @@ function EnergyFibers() {
     )
 }
 
-function StageGlobalBeams({ scrollProgressRef }) {
+function StageGlobalBeams({ scrollProgressRef, tier = 2 }) {
     return (
         <group>
             {[...Array(12)].map((_, i) => (
                 <Cylinder
                     key={i}
-                    args={[1, 50, 4000, 32]}
+                    args={[1, 50, 4000, tier === 0 ? 12 : 32]}
                     position={[Math.sin(i) * 500, -2000, Math.cos(i) * 500]}
                     rotation={[Math.PI * 0.1, 0, (i - 6) * 0.05]}
                 >
@@ -351,8 +357,12 @@ function StageGlobalBeams({ scrollProgressRef }) {
     )
 }
 
-function PointsBuffer() {
-    const count = 8000
+function PointsBuffer({ tier }) {
+    const count = useMemo(() => {
+        if (tier === 0) return 2000
+        if (tier === 1) return 5000
+        return 8000
+    }, [tier])
     const points = useMemo(() => {
         const p = new Float32Array(count * 3)
         for (let i = 0; i < count; i++) {

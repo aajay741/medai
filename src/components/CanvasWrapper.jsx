@@ -13,20 +13,23 @@ import { BlendFunction } from 'postprocessing'
 // OPTIMIZATION: Check if we're on mobile for performance adjustments
 const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
 
-export default function CanvasWrapper({ scrollProgressRef }) {
+export default function CanvasWrapper({ scrollProgressRef, tier = 2 }) {
+    const isLowTier = tier === 0
+    const isMidTier = tier === 1
+
     return (
         <Canvas
             camera={{ position: [0, 0, 10], fov: 50 }}
             // OPTIMIZATION: Optimized GL settings for performance
             gl={{
-                antialias: !isMobile, // Disable AA on mobile
+                antialias: tier > 0 && !isMobile, // Disable AA on low tier or mobile
                 alpha: false, // Opaque background is faster
                 powerPreference: 'high-performance',
                 stencil: false, // Not needed, saves memory
                 depth: true,
             }}
-            // OPTIMIZATION: Clamp DPR to 1.5 max (was 2) to reduce pixel count
-            dpr={isMobile ? 1 : [1, 1.5]}
+            // OPTIMIZATION: Adaptive DPR
+            dpr={isMobile ? 1 : (isLowTier ? 1 : [1, 1.5])}
             // OPTIMIZATION: Enable performance features
             shadows={false} // Shadows disabled (not used in current scene)
             flat // Disable tone mapping for better performance
@@ -34,10 +37,11 @@ export default function CanvasWrapper({ scrollProgressRef }) {
             frameloop="always"
             // OPTIMIZATION: Enable frustum culling
             onCreated={({ gl, scene }) => {
+                if (!gl || !scene) return
                 gl.setClearColor('#030303')
                 // Enable frustum culling for all objects
                 scene.traverse((obj) => {
-                    if (obj.isMesh) {
+                    if (obj && obj.isMesh) {
                         obj.frustumCulled = true
                     }
                 })
@@ -48,41 +52,43 @@ export default function CanvasWrapper({ scrollProgressRef }) {
                 <CameraRig scrollProgressRef={scrollProgressRef} />
 
                 {/* Dynamic Background */}
-                <SceneBackground scrollProgressRef={scrollProgressRef} />
+                <SceneBackground scrollProgressRef={scrollProgressRef} tier={tier} />
 
                 {/* Lighting */}
-                <StageLights scrollProgressRef={scrollProgressRef} />
+                <StageLights scrollProgressRef={scrollProgressRef} tier={tier} />
 
                 {/* Atmostphere & Depth */}
-                <AmbientDust count={isMobile ? 100 : 300} />
+                <AmbientDust count={isMobile || isLowTier ? 100 : 300} />
                 <GlowPlane position={[0, 0, -50]} scale={[100, 100, 1]} color="#A78BFA" opacity={0.02} />
-                <GlowPlane position={[20, 20, -30]} scale={[50, 50, 1]} color="#ffffff" opacity={0.01} />
+
+                {!isLowTier && (
+                    <GlowPlane position={[20, 20, -30]} scale={[50, 50, 1]} color="#ffffff" opacity={0.01} />
+                )}
 
                 {/* 3D Elements */}
-                <ParticleSystem scrollProgressRef={scrollProgressRef} />
-                <MicModel scrollProgressRef={scrollProgressRef} />
+                <ParticleSystem scrollProgressRef={scrollProgressRef} tier={tier} />
+                <MicModel scrollProgressRef={scrollProgressRef} tier={tier} />
 
                 {/* OPTIMIZATION: Reduced post-processing for better performance */}
                 <EffectComposer
                     multisampling={0} // Disable MSAA (expensive)
-                    enabled={!isMobile} // Disable entirely on mobile
-                    // OPTIMIZATION: Reduce resolution to 80% for better performance
-                    resolutionScale={isMobile ? 0.5 : 0.8}
+                    enabled={!isMobile && tier > 1} // Disable post-processing on mobile or low/mid tiers
+                    resolutionScale={isLowTier ? 0.5 : 0.8}
                 >
                     <Bloom
-                        intensity={isMobile ? 0.4 : 0.8} // Increased from 0.5 for cinematic glow
-                        luminanceThreshold={0.2} // Restored sensitivity
+                        intensity={isMobile ? 0.4 : 0.8}
+                        luminanceThreshold={0.2}
                         luminanceSmoothing={0.9}
                         mipmapBlur
                         levels={isMobile ? 3 : 5}
                     />
                     <Vignette
                         offset={0.3}
-                        darkness={0.6} // Increased for depth
+                        darkness={0.6}
                         blendFunction={BlendFunction.NORMAL}
                     />
                     <Noise
-                        opacity={0.03} // Increased from 0.01 for texture
+                        opacity={0.03}
                         blendFunction={BlendFunction.OVERLAY}
                     />
                 </EffectComposer>

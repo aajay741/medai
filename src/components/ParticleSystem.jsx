@@ -2,21 +2,24 @@ import { useRef, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 
-// RESTORATION: Increased particle count and size for high-impact cinematic presence
-const PARTICLE_COUNT = 2400
-
-export default function ParticleSystem({ scrollProgressRef }) {
+export default function ParticleSystem({ scrollProgressRef, tier = 2 }) {
     const particlesRef = useRef()
     // OPTIMIZATION: Cache rotation values
     const rotationCache = useRef({ x: 0, y: 0 })
 
-    const particles = useMemo(() => {
-        const positions = new Float32Array(PARTICLE_COUNT * 3)
-        const sizes = new Float32Array(PARTICLE_COUNT)
-        // OPTIMIZATION: Add vertex colors for variety without extra draw calls
-        const colors = new Float32Array(PARTICLE_COUNT * 3)
+    const count = useMemo(() => {
+        if (tier === 0) return 800
+        if (tier === 1) return 1500
+        return 2400
+    }, [tier])
 
-        for (let i = 0; i < PARTICLE_COUNT; i++) {
+    const particles = useMemo(() => {
+        const positions = new Float32Array(count * 3)
+        const sizes = new Float32Array(count)
+        // OPTIMIZATION: Add vertex colors for variety without extra draw calls
+        const colors = new Float32Array(count * 3)
+
+        for (let i = 0; i < count; i++) {
             const i3 = i * 3
             // RESTORATION: Expanded Y range to 1000 to cover the entire camera descent
             positions[i3] = (Math.random() - 0.5) * 100
@@ -32,7 +35,7 @@ export default function ParticleSystem({ scrollProgressRef }) {
         }
 
         return { positions, sizes, colors }
-    }, [])
+    }, [count])
 
     useFrame((state) => {
         if (!particlesRef.current) return
@@ -66,13 +69,13 @@ export default function ParticleSystem({ scrollProgressRef }) {
             <bufferGeometry>
                 <bufferAttribute
                     attach="attributes-position"
-                    count={PARTICLE_COUNT}
+                    count={count}
                     array={particles.positions}
                     itemSize={3}
                 />
                 <bufferAttribute
                     attach="attributes-color"
-                    count={PARTICLE_COUNT}
+                    count={count}
                     array={particles.colors}
                     itemSize={3}
                 />

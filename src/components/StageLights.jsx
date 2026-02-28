@@ -3,7 +3,8 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import LightBeam from './ThreeD/LightBeam'
 
-export default function StageLights({ scrollProgressRef }) {
+export default function StageLights({ scrollProgressRef, tier = 2 }) {
+    const isLowTier = tier === 0
     const mainLight = useRef()
     const intensityCache = useRef(1.5)
     // OPTIMIZATION: Cache color targets
@@ -56,12 +57,14 @@ export default function StageLights({ scrollProgressRef }) {
             </group>
 
             {/* RESTORATION: Added a follower light to ensure scroll targets are illuminated */}
-            <pointLight
-                position={[0, -scrollProgressRef.current * 320, 15]}
-                intensity={4}
-                distance={100}
-                color="#A78BFA"
-            />
+            {!isLowTier && (
+                <pointLight
+                    position={[0, -scrollProgressRef.current * 320, 15]}
+                    intensity={4}
+                    distance={100}
+                    color="#A78BFA"
+                />
+            )}
         </group>
     )
 }

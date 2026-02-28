@@ -37,7 +37,8 @@ const locations = [
     }
 ]
 
-export default function ContactSection() {
+export default function ContactSection({ tier = 2, isMobile = false }) {
+    const isLowTier = tier === 0 || isMobile
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -48,7 +49,13 @@ export default function ContactSection() {
     const [submitted, setSubmitted] = useState(false)
 
     const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value })
+        const { name, value } = e.target;
+        if (name === 'phone') {
+            const numericValue = value.replace(/[^0-9]/g, '');
+            setFormData({ ...formData, [name]: numericValue });
+        } else {
+            setFormData({ ...formData, [name]: value });
+        }
     }
 
     const handleSubmit = (e) => {
@@ -58,9 +65,11 @@ export default function ContactSection() {
     }
 
     return (
-        <section className="relative py-24 px-6 overflow-hidden bg-[#030303] border-t border-[#A78BFA]/10">
-            {/* Background glow */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[80vw] h-[40vh] bg-[#A78BFA]/[0.04] blur-[120px] rounded-full pointer-events-none" />
+        <section id="contact" className="relative py-24 px-6 overflow-hidden bg-[#030303] border-t border-[#A78BFA]/10">
+            {/* Background glow - Only on mid and high tiers */}
+            {!isLowTier && !isMobile && (
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[80vw] h-[40vh] bg-[#A78BFA]/[0.04] blur-[120px] rounded-full pointer-events-none" />
+            )}
 
             <div className="container mx-auto max-w-7xl relative z-10">
                 {/* Section Header */}
@@ -74,10 +83,10 @@ export default function ContactSection() {
                         06 / Get in Touch
                     </motion.span>
                     <motion.h2
-                        initial={{ opacity: 0, y: 20 }}
+                        initial={{ opacity: 0, y: isLowTier ? 10 : 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
-                        transition={{ delay: 0.1, duration: 1, ease: [0.16, 1, 0.3, 1] }}
+                        transition={{ delay: 0.1, duration: isLowTier ? 0.8 : 1, ease: [0.16, 1, 0.3, 1] }}
                         className="text-5xl md:text-8xl font-black tracking-tighter uppercase text-white leading-none"
                     >
                         Get in Touch.
@@ -98,11 +107,11 @@ export default function ContactSection() {
                     {locations.map((loc, i) => (
                         <motion.div
                             key={i}
-                            initial={{ opacity: 0, y: 40 }}
+                            initial={isLowTier ? { opacity: 0 } : { opacity: 0, y: 40 }}
                             whileInView={{ opacity: 1, y: 0 }}
                             viewport={{ once: true }}
-                            transition={{ delay: i * 0.1, duration: 1, ease: [0.16, 1, 0.3, 1] }}
-                            whileHover={{ y: -8 }}
+                            transition={{ delay: i * (isLowTier ? 0.05 : 0.1), duration: isLowTier ? 0.8 : 1, ease: [0.16, 1, 0.3, 1] }}
+                            whileHover={isLowTier ? {} : { y: -8 }}
                             className="glass p-8 md:p-10 rounded-[3rem] border border-white/5 shadow-3xl transition-all duration-700 bg-white/[0.01] group"
                         >
                             <div className="mb-6 w-12 h-12 rounded-2xl bg-[#A78BFA]/10 border border-[#A78BFA]/30 flex items-center justify-center group-hover:bg-[#A78BFA] transition-all duration-500">
@@ -170,13 +179,15 @@ export default function ContactSection() {
                     {/* Right: Form */}
                     <motion.form
                         onSubmit={handleSubmit}
-                        initial={{ opacity: 0, y: 30 }}
+                        initial={isLowTier ? { opacity: 0 } : { opacity: 0, y: 30 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
-                        transition={{ duration: 1.2, delay: 0.2 }}
+                        transition={{ duration: isLowTier ? 0.8 : 1.2, delay: isLowTier ? 0.1 : 0.2 }}
                         className="glass p-8 md:p-12 rounded-[3rem] border border-white/5 relative space-y-8"
                     >
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[80%] bg-[#A78BFA]/5 blur-[100px] rounded-full -z-10 pointer-events-none" />
+                        {!isLowTier && !isMobile && (
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[80%] bg-[#A78BFA]/5 blur-[100px] rounded-full -z-10 pointer-events-none" />
+                        )}
 
                         {/* Name */}
                         <div className="group">
@@ -262,8 +273,8 @@ export default function ContactSection() {
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
                             className={`w-full py-6 rounded-full text-xs font-black tracking-[0.6em] uppercase transition-all duration-700 shadow-3xl ${submitted
-                                    ? 'bg-green-400 text-black'
-                                    : 'bg-[#A78BFA] text-black hover:bg-white'
+                                ? 'bg-green-400 text-black'
+                                : 'bg-[#A78BFA] text-black hover:bg-white'
                                 }`}
                         >
                             {submitted ? '✓ Message Sent' : 'Send Message'}

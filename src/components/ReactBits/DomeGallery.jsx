@@ -83,8 +83,10 @@ export default function DomeGallery({
     openedImageHeight = '400px',
     imageBorderRadius = '30px',
     openedImageBorderRadius = '30px',
-    grayscale = true
+    grayscale = true,
+    tier = 2
 }) {
+    const isLowTier = tier === 0
     const rootRef = useRef(null);
     const mainRef = useRef(null);
     const sphereRef = useRef(null);

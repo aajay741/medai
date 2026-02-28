@@ -3,7 +3,7 @@ import Stats from '../sections/Stats'
 import Footer from '../components/Footer'
 import { motion } from 'framer-motion'
 
-export default function LocationsPage({ onBookClick }) {
+export default function LocationsPage({ onBookClick, tier = 2, isMobile = false }) {
     return (
         <motion.div
             initial={{ opacity: 0 }}
@@ -12,10 +12,10 @@ export default function LocationsPage({ onBookClick }) {
             className="bg-[#030303]"
         >
             <div className="pt-20">
-                <Stats />
-                <Venues onBookClick={onBookClick} />
+                <Stats tier={tier} isMobile={isMobile} />
+                <Venues onBookClick={onBookClick} tier={tier} isMobile={isMobile} />
             </div>
-            <Footer />
+            <Footer tier={tier} isMobile={isMobile} />
         </motion.div>
     )
 }
