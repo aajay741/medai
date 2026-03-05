@@ -29,10 +29,11 @@ if (!$ref) {
 try {
     $db = Database::getInstance()->getConnection();
 
-    // 1. Check if invoice ID already stored in special_requests
+    // 1. Check if invoice ID already stored in database (FAST)
     $stmt = $db->prepare("SELECT id, name, email, phone, location, event_date, event_time,
                            ticket_type, quantity, total_amount, special_requests,
-                           company_name, gst_number, billing_address, city, state, zip_code
+                           company_name, gst_number, billing_address, city, state, zip_code,
+                           zoho_invoice_id, zoho_customer_id
                            FROM bookings WHERE booking_reference = ? LIMIT 1");
     $stmt->execute([$ref]);
     $booking = $stmt->fetch();
@@ -42,11 +43,13 @@ try {
         sendResponse(false, null, 'Booking not found', 404);
     }
 
-    // Parse existing Zoho Invoice ID from special_requests if stored
-    $zohoInvoiceId  = null;
-    $zohoInvoiceUrl = null;
-    if (preg_match('/Zoho Invoice ID:\s*(\S+)/i', $booking['special_requests'] ?? '', $m)) {
+    $zohoInvoiceId = $booking['zoho_invoice_id'];
+
+    // If not in the new column, check special_requests (backwards compatibility)
+    if (!$zohoInvoiceId && preg_match('/Zoho Invoice ID:\s*(\S+)/i', $booking['special_requests'] ?? '', $m)) {
         $zohoInvoiceId = trim($m[1]);
+        // Fast-fix: Migrating it to the new column now
+        $db->prepare("UPDATE bookings SET zoho_invoice_id = ? WHERE id = ?")->execute([$zohoInvoiceId, $booking['id']]);
     }
 
     // 2. If already have it, return immediately
@@ -62,26 +65,19 @@ try {
     // 3. Not yet generated — try to create it now
     require_once '../config/ZohoInvoiceService.php';
 
-    // Calculate unit rate
-    $ticketType = $booking['ticket_type'];
-    $loc        = strtoupper($booking['location']);
-    $unitRate   = 799;
-    if ($ticketType === 'Space Rental') {
-        if ($loc === 'CHENNAI')                             $unitRate = 15000;
-        elseif ($loc === 'BANGALORE' || $loc === 'BENGALURU') $unitRate = 45000;
-        elseif ($loc === 'COIMBATORE')                      $unitRate = 30000;
-        else                                                 $unitRate = 15000;
-    } else {
-        $prices   = ['General Admission' => 799, 'VIP' => 1500, 'Premium' => 2500];
-        $unitRate = $prices[$ticketType] ?? 799;
-    }
+    // Calculate unit rate from DB (more accurate than hardcoding)
+    $qty = (int)$booking['quantity'];
+    $total = (int)$booking['total_amount'];
+    // total = (unitRate * qty) * 1.18
+    // unitRate = (total / 1.18) / qty
+    $unitRate = ($qty > 0) ? floor(($total / 1.18) / $qty) : 799;
 
     $zohoData = ZohoInvoiceService::createInvoice([
         'name'              => $booking['name'],
         'email'             => $booking['email'],
         'phone'             => $booking['phone'],
         'booking_reference' => $ref,
-        'show_title'        => 'MEDAI Performance',
+        'show_title'        => $ticketType === 'Space Rental' ? 'Space Booking' : 'MEDAI Performance',
         'location'          => $booking['location'],
         'event_date'        => $booking['event_date'],
         'event_time'        => $booking['event_time'],
@@ -98,11 +94,12 @@ try {
 
     if ($zohoData && isset($zohoData['invoice_id'])) {
         $zohoInvoiceId  = $zohoData['invoice_id'];
-        $zohoInvoiceUrl = $zohoData['invoice_url'] ?? '';
+        $zohoCustomerId = $zohoData['customer_id'] ?? null;
 
-        // Persist into DB so next poll is instant
-        $upd = $db->prepare("UPDATE bookings SET special_requests = CONCAT(IFNULL(special_requests,''), '\nZoho Invoice ID: ', ?) WHERE booking_reference = ?");
-        $upd->execute([$zohoInvoiceId, $ref]);
+        // Persist into DB specialized columns
+        $sql = "UPDATE bookings SET zoho_invoice_id = ?, zoho_customer_id = ? WHERE booking_reference = ?";
+        $upd = $db->prepare($sql);
+        $upd->execute([$zohoInvoiceId, $zohoCustomerId, $ref]);
 
         ob_end_clean();
         sendResponse(true, [

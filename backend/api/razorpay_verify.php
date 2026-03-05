@@ -120,50 +120,14 @@ try {
         $razorpayOrderId, $razorpayPaymentId
     ]);
 
-    // ── 5. GENERATE ZOHO INVOICE IMMEDIATELY ─────────────────────────────────
+    // ── 5. GENERATE ZOHO INVOICE (OFFLOADED TO POLLING) ──────────────────────
+    /* 
+    We no longer block the payment response waiting for Zoho.
+    The frontend polls get_invoice_status.php which handles the generation.
+    This makes the "Payment Verified" transition feel instant.
+    */
     $invoiceId = null;
     $invoicePath = null;
-    
-    try {
-        require_once '../config/ZohoInvoiceService.php';
-        
-        // Calculate unit rate
-        $unitPrice = isset($input['unitPrice']) ? (int)$input['unitPrice'] : 
-                     (($quantity > 0) ? floor($totalAmount / $quantity / 1.18) : 799);
-
-        $zohoData = ZohoInvoiceService::createInvoice([
-            'name'              => $name,
-            'email'             => $email,
-            'phone'             => $phone,
-            'booking_reference' => $bookingRef,
-            'show_title'        => $ticketType === 'Space Rental' ? 'Space Booking' : 'Performance Session',
-            'location'          => $location,
-            'event_date'        => $eventDate,
-            'event_time'        => $eventTime,
-            'ticket_type'       => $ticketType,
-            'quantity'          => $quantity,
-            'price_per_unit'    => $unitPrice,
-            'company_name'      => $companyName,
-            'gst_number'        => $gstNumber,
-            'billing_address'   => $billingAddress,
-            'city'              => $city,
-            'state'             => $state,
-            'zip'               => $zipCode
-        ]);
-
-        if ($zohoData && isset($zohoData['invoice_id'])) {
-            $invoiceId = $zohoData['invoice_id'];
-            $invoicePath = '/backend/api/invoice_download.php?invoice_id=' . urlencode($invoiceId);
-            
-            // Persist into DB
-            $upd = $db->prepare("UPDATE bookings SET special_requests = CONCAT(IFNULL(special_requests,''), '\nZoho Invoice ID: ', ?) WHERE booking_reference = ?");
-            $upd->execute([$invoiceId, $bookingRef]);
-        }
-    } catch (Exception $zohoErr) {
-        // Zoho failed but the booking is already saved in Step 4.
-        // We log the error and let the frontend poll for the invoice later or handle it non-fatally.
-        error_log("ZOHO INVOICE ERROR during verification: " . $zohoErr->getMessage());
-    }
 
     // ── 6. RETURN SUCCESS WITH INVOICE DATA ──────────────────────────────────
     ob_end_clean();

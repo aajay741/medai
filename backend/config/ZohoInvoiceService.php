@@ -56,7 +56,21 @@ class ZohoInvoiceService {
 
         error_log("Zoho: Searching/Creating customer for $email");
 
-        // Search by email first
+        // 1. Check our database first (SPEED OPTIMIZATION)
+        try {
+            $db = Database::getInstance()->getConnection();
+            $stmt = $db->prepare("SELECT zoho_customer_id FROM bookings WHERE email = ? AND zoho_customer_id IS NOT NULL ORDER BY id DESC LIMIT 1");
+            $stmt->execute([$email]);
+            $cachedCustomerId = $stmt->fetchColumn();
+            if ($cachedCustomerId) {
+                error_log("Zoho: Found cached customer ID in DB: $cachedCustomerId");
+                return $cachedCustomerId;
+            }
+        } catch (Exception $e) {
+            error_log("Zoho: DB Cache check failed: " . $e->getMessage());
+        }
+
+        // 2. Search by email in Zoho
         $curl = curl_init();
         curl_setopt_array($curl, [
             CURLOPT_URL            => ZOHO_BASE_URL . "/contacts?email=" . urlencode($email) . "&organization_id=" . ZOHO_ORGANIZATION_ID,
@@ -68,12 +82,12 @@ class ZohoInvoiceService {
 
         if (!empty($response['contacts'])) {
             $contactId = $response['contacts'][0]['contact_id'];
-            error_log("Zoho: Found existing contact: $contactId");
+            error_log("Zoho: Found existing contact in Zoho: $contactId");
             return $contactId;
         }
 
         error_log("Zoho: Creating new customer...");
-        // Create new customer
+        // 3. Create new customer
         $curl = curl_init();
         
         $billing_addr = mb_substr($bookingData['billing_address'] ?? '', 0, 80);
@@ -179,9 +193,10 @@ class ZohoInvoiceService {
             $invoice = $response['invoice'];
             error_log("Zoho: Invoice created successfully: " . $invoice['invoice_id']);
             return [
-                'invoice_id'  => $invoice['invoice_id'],
-                'invoice_url' => $invoice['invoice_url'] ?? null,
-                'invoice_number' => $invoice['invoice_number'] ?? null
+                'invoice_id'     => $invoice['invoice_id'],
+                'invoice_url'    => $invoice['invoice_url'] ?? null,
+                'invoice_number' => $invoice['invoice_number'] ?? null,
+                'customer_id'    => $customerId
             ];
         }
 
