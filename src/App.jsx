@@ -23,6 +23,8 @@ import AdminLogin from './pages/AdminLogin'
 import AdminDashboard from './pages/AdminDashboard'
 import AdminEvents from './pages/AdminEvents'
 import AdminGallery from './pages/AdminGallery'
+import AdminUsers from './pages/AdminUsers'
+import AdminCalendar from './pages/AdminCalendar'
 import LocationsPage from './pages/LocationsPage'
 
 import { usePerformance } from './hooks/usePerformance'
@@ -177,6 +179,8 @@ export default function App() {
                     <Route path="/admin/dashboard" element={<AdminDashboard />} />
                     <Route path="/admin/events" element={<AdminEvents />} />
                     <Route path="/admin/gallery" element={<AdminGallery />} />
+                    <Route path="/admin/users" element={<AdminUsers />} />
+                    <Route path="/admin/calendar" element={<AdminCalendar />} />
                     <Route path="/locations" element={<LocationsPage onBookClick={handleOpenBooking} tier={tier} isMobile={isMobile} />} />
                 </Routes>
             </div>

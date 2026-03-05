@@ -33,12 +33,14 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
         show: '',
         date: '',
         date_full: '',
-        time: '',
-        slot_code: '',
-        duration: '',
-        price: 0,
+        times: [], // Array for multiple slots
+        slot_codes: [],
+        durations: [],
+        price_per_slot: 0,
+        subtotal: 0,
+        gst: 0,
         total: 0,
-        tickets: 1,
+        tickets: 0, // Will be auto-derived from times.length
         name: '',
         email: '',
         phone: '',
@@ -53,6 +55,49 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
     const [formErrors, setFormErrors] = useState({})
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [bookingResponse, setBookingResponse] = useState(null)
+    const [invoiceStatus, setInvoiceStatus] = useState({ ready: false, invoiceDownloadPath: null, polling: false })
+    const invoicePollRef = useRef(null)
+
+    // Calendar State
+    const [currentMonth, setCurrentMonth] = useState(new Date().getMonth())
+    const [currentYear, setCurrentYear] = useState(new Date().getFullYear())
+    const [availability, setAvailability] = useState({})
+    const [dynamicSlots, setDynamicSlots] = useState([])
+
+    const getDaysInMonth = (month, year) => {
+        const date = new Date(year, month, 1)
+        const days = []
+        while (date.getMonth() === month) {
+            days.push(new Date(date))
+            date.setDate(date.getDate() + 1)
+        }
+        return days
+    }
+
+    // ── Poll for invoice after payment confirmed ──────────────────────────────
+    useEffect(() => {
+        if (bookingResponse?.bookingReference && !invoiceStatus.ready) {
+            setInvoiceStatus(s => ({ ...s, polling: true }))
+            const ref = bookingResponse.bookingReference
+
+            const poll = async () => {
+                try {
+                    const res = await fetch(`/backend/api/get_invoice_status.php?ref=${encodeURIComponent(ref)}`)
+                    const data = await res.json()
+                    if (data.success && data.data?.ready) {
+                        setInvoiceStatus({ ready: true, invoiceDownloadPath: data.data.invoiceDownloadPath, polling: false })
+                        clearInterval(invoicePollRef.current)
+                    }
+                } catch (e) {
+                    // keep polling silently
+                }
+            }
+
+            poll() // first attempt immediately
+            invoicePollRef.current = setInterval(poll, 1500)
+            return () => clearInterval(invoicePollRef.current)
+        }
+    }, [bookingResponse])
 
     useEffect(() => {
         if (step === 6) {
@@ -100,6 +145,22 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
         }
         if (isOpen) fetchEvents()
     }, [isOpen])
+
+    useEffect(() => {
+        const fetchAvailability = async () => {
+            if (!bookingData.location) return
+            try {
+                const res = await fetch(`/backend/api/get_availability.php?location=${encodeURIComponent(bookingData.location)}&month=${currentMonth + 1}&year=${currentYear}`)
+                const data = await res.json()
+                if (data.success) {
+                    setAvailability(data.data)
+                }
+            } catch (err) {
+                console.error('Error fetching availability:', err)
+            }
+        }
+        if (isOpen && bookingData.location) fetchAvailability()
+    }, [isOpen, bookingData.location, currentMonth, currentYear])
 
     const defaultLocations = [
         { id: 'chennai', name: 'CHENNAI', venue: 'MEDAI Space' },
@@ -173,8 +234,20 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
         ? generateFallbackDates()
         : eventDates
 
+    useEffect(() => {
+        const fetchSlotsForDate = async () => {
+            if (!selectedLocation || !bookingData.date_full) return
+            try {
+                const res = await fetch(`/backend/api/get_slots.php?location=${encodeURIComponent(selectedLocation)}&date=${bookingData.date_full}`)
+                const data = await res.json()
+                if (data.success) setDynamicSlots(data.data)
+            } catch (err) { console.error('Error fetching slots:', err) }
+        }
+        if (bookingData.show === 'Space Booking') fetchSlotsForDate()
+    }, [selectedLocation, bookingData.date_full, bookingData.show])
+
     const times = bookingData.show === 'Space Booking'
-        ? (VENUE_SLOTS[selectedLocation] || []).map(s => s.range)
+        ? dynamicSlots.map(s => s.slot_range)
         : allEvents
             .filter(e =>
                 e.location && String(e.location).trim().toUpperCase() === selectedLocation &&
@@ -194,15 +267,18 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                     show: 'Space Booking',
                     date: '',
                     date_full: '',
-                    time: '',
-                    slot_code: '',
-                    duration: '',
-                    price: 0,
-                    total: 0
+                    times: [],
+                    slot_codes: [],
+                    durations: [],
+                    price_per_slot: 0,
+                    subtotal: 0,
+                    gst: 0,
+                    total: 0,
+                    tickets: 0
                 }))
                 setStep(2)
             } else {
-                setBookingData(prev => ({ ...prev, location: '', show: '', date: '', date_full: '', time: '' }))
+                setBookingData(prev => ({ ...prev, location: '', show: '', date: '', date_full: '', times: [] }))
                 setStep(1)
             }
         }
@@ -234,9 +310,7 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
         setIsSubmitting(true)
         try {
             // ── Step 1: Calculate total amount (paise for Razorpay) ──────────
-            const basePrice = bookingData.price || 799
-            const totalWithGst = Math.round(basePrice * bookingData.tickets * 1.18)
-            const amountInPaise = totalWithGst * 100
+            const amountInPaise = Math.round(bookingData.total * 100)
 
             // ── Step 2: Create Razorpay Order on server ───────────────────────
             const orderRes = await fetch('/backend/api/razorpay_order.php', {
@@ -291,11 +365,12 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                     location: bookingData.location,
                                     showTitle: bookingData.show,
                                     eventDate: bookingData.date_full,
-                                    eventTime: bookingData.time,
+                                    eventTime: bookingData.times.join(', '),
                                     ticketType: bookingData.show === 'Space Booking' ? 'Space Rental' : 'General Admission',
-                                    quantity: bookingData.tickets,
-                                    totalAmount: totalWithGst,
-                                    specialRequests: `Slot: ${bookingData.slot_code || 'N/A'} (${bookingData.duration || ''})`,
+                                    quantity: bookingData.times.length || 1,
+                                    totalAmount: bookingData.total,
+                                    unitPrice: bookingData.price_per_slot,
+                                    specialRequests: `Slots: ${bookingData.slot_codes.join(', ') || 'N/A'} (${bookingData.durations.join(', ') || ''})`,
                                     purpose: bookingData.purpose,
                                     companyName: bookingData.company_name,
                                     gstNumber: bookingData.gst_number,
@@ -307,26 +382,23 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                             })
                             const verifyData = await verifyRes.json()
                             if (verifyData.success) {
-                                // 1. Immediate UI update
+                                // 1. Immediate UI update with booking and Zoho data
                                 setBookingResponse(verifyData.data)
+
+                                // Update invoice status immediately if available
+                                if (verifyData.data?.invoiceReady) {
+                                    setInvoiceStatus({
+                                        ready: true,
+                                        invoiceDownloadPath: verifyData.data.invoiceDownloadPath,
+                                        polling: false
+                                    })
+                                }
+
                                 setDirection(1)
                                 setStep(5)
                                 resolve()
 
-                                // 2. Background Zoho Invoice Generation (IMMEDIATE FEEL)
-                                fetch('/backend/api/generate_invoice.php', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ bookingReference: verifyData.data.bookingReference })
-                                })
-                                    .then(res => res.json())
-                                    .then(invData => {
-                                        if (invData.success) {
-                                            setBookingResponse(prev => ({ ...prev, ...invData.data }))
-                                        }
-                                    }).catch(e => console.warn('Invoice generation delayed:', e))
-
-                                // 3. Background WhatsApp/SMS notification
+                                // 2. Background WhatsApp/SMS notification
                                 fetch('/backend/api/send_notification.php', {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
@@ -337,7 +409,7 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                         location: bookingData.location,
                                         eventDate: bookingData.date,
                                         eventTime: bookingData.time,
-                                        totalAmount: totalWithGst,
+                                        totalAmount: bookingData.total,
                                         invoiceUrl: verifyData.data?.zohoInvoiceUrl || ''
                                     })
                                 }).catch(e => console.warn('Notification failed:', e))
@@ -434,7 +506,7 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[200] bg-[#030303]/90 flex items-center justify-center p-4 md:p-10 backdrop-blur-3xl overflow-y-auto"
+            className="fixed inset-0 z-[200] bg-[#030303]/90 flex items-center justify-center p-2 md:p-8 backdrop-blur-3xl overflow-hidden"
             data-lenis-prevent
         >
             {/* Cinematic 3D Depth Elements */}
@@ -462,7 +534,7 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                 initial="hidden"
                 animate="visible"
                 exit="exit"
-                className="relative w-full max-w-3xl glass border border-white/5 rounded-[3rem] p-6 md:p-12 shadow-[0_80px_160px_-40px_rgba(0,0,0,0.9)] z-10"
+                className="relative w-full max-w-5xl max-h-[90vh] glass border border-white/5 rounded-[3rem] p-6 md:p-10 shadow-[0_80px_160px_-40px_rgba(0,0,0,0.9)] z-10 overflow-y-auto"
             >
                 {/* Header Section */}
                 <div className="flex justify-between items-start mb-8 relative">
@@ -536,20 +608,104 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                 className="space-y-8 relative"
                             >
 
-                                <div className="space-y-12">
-                                    {/* Date Selection */}
-                                    <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide px-2">
-                                        {dates.map((d, i) => (
-                                            <button
-                                                key={i}
-                                                onClick={() => setBookingData(prev => ({ ...prev, date: `${d.num} ${d.month}`, date_full: d.full, time: '' }))}
-                                                className={`flex-shrink-0 w-24 p-6 rounded-[2rem] border transition-all duration-700 flex flex-col items-center justify-center gap-1 ${bookingData.date === `${d.num} ${d.month}` ? 'bg-[#A78BFA] border-[#A78BFA] text-black shadow-[0_15px_30px_rgba(167,139,250,0.2)]' : 'bg-white/5 border-white/5 hover:border-[#A78BFA]/30'}`}
-                                            >
-                                                <span className={`text-[10px] font-black tracking-widest uppercase ${bookingData.date === `${d.num} ${d.month}` ? 'text-black/50' : 'text-[#A78BFA]/60'}`}>{d.month}</span>
-                                                <span className="text-3xl font-black tracking-tighter leading-none">{d.num}</span>
-                                                <span className={`text-[10px] font-black tracking-widest uppercase ${bookingData.date === `${d.num} ${d.month}` ? 'text-black/50' : 'text-white/40'}`}>{d.day}</span>
-                                            </button>
+                                <div className="space-y-8">
+                                    {/* Month Navigation */}
+                                    <div className="flex items-center justify-between mb-4 px-4 pb-2 border-b border-white/5">
+                                        <button
+                                            onClick={() => {
+                                                if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(y => y - 1); }
+                                                else setCurrentMonth(m => m - 1);
+                                            }}
+                                            className="p-2 rounded-full bg-white/5 border border-white/10 hover:bg-[#A78BFA] hover:text-black transition-all"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                            </svg>
+                                        </button>
+
+                                        <div className="text-center">
+                                            <div className="text-[8px] font-black tracking-[0.4em] text-[#A78BFA] uppercase mb-0.5">Select Date</div>
+                                            <div className="text-xl font-black uppercase tracking-tighter">
+                                                {new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date(currentYear, currentMonth))}
+                                            </div>
+                                        </div>
+
+                                        <button
+                                            onClick={() => {
+                                                if (currentMonth === 11) { setCurrentMonth(0); setCurrentYear(y => y + 1); }
+                                                else setCurrentMonth(m => m + 1);
+                                            }}
+                                            className="p-2 rounded-full bg-white/5 border border-white/10 hover:bg-[#A78BFA] hover:text-black transition-all"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                            </svg>
+                                        </button>
+                                    </div>
+
+                                    {/* Calendar Grid */}
+                                    <div className="grid grid-cols-7 gap-1 md:gap-2 mb-4">
+                                        {['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map(day => (
+                                            <div key={day} className="text-center text-[9px] font-black text-white/30 py-1">{day}</div>
                                         ))}
+
+                                        {/* Empty cells for start of month */}
+                                        {Array.from({ length: new Date(currentYear, currentMonth, 1).getDay() }).map((_, i) => (
+                                            <div key={`empty-${i}`} />
+                                        ))}
+                                        {getDaysInMonth(currentMonth, currentYear).map((dateObj, i) => {
+                                            const dateYear = dateObj.getFullYear()
+                                            const dateMonth = String(dateObj.getMonth() + 1).padStart(2, '0')
+                                            const dateDay = String(dateObj.getDate()).padStart(2, '0')
+                                            const dateFullString = `${dateYear}-${dateMonth}-${dateDay}`
+
+                                            const isToday = new Date().toDateString() === dateObj.toDateString()
+                                            const isSelected = bookingData.date_full === dateFullString
+                                            const isPast = dateObj < new Date(new Date().setHours(0, 0, 0, 0))
+
+                                            const d = {
+                                                num: dateObj.getDate(),
+                                                month: new Intl.DateTimeFormat('en-US', { month: 'short' }).format(dateObj).toUpperCase(),
+                                                day: new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(dateObj).toUpperCase(),
+                                                full: dateFullString
+                                            }
+                                            const dayStatus = availability[d.full]?.status || 'available'
+
+                                            return (
+                                                <button
+                                                    key={i}
+                                                    disabled={isPast || dayStatus === 'full'}
+                                                    onClick={() => setBookingData(prev => ({ ...prev, date: `${d.num} ${d.month}`, date_full: d.full, times: [], slot_codes: [], durations: [], total: 0, subtotal: 0, gst: 0, tickets: 0 }))}
+                                                    className={`p-1.5 md:p-2 rounded-2xl border transition-all duration-500 flex flex-col items-center justify-center gap-0.5 relative overflow-hidden group 
+                                                        ${isSelected ? 'bg-[#A78BFA] border-[#A78BFA] text-black shadow-[0_8px_16px_rgba(167,139,250,0.3)]' :
+                                                            dayStatus === 'partial' ? 'bg-orange-500/40 border-orange-500/60 text-white hover:bg-orange-500/50' :
+                                                                dayStatus === 'full' ? 'bg-white/10 border-white/10 opacity-40 cursor-not-allowed text-white/40' :
+                                                                    'bg-white/5 border-white/5 hover:border-[#A78BFA]/40 text-white/60'}
+                                                        ${isPast ? 'opacity-20 cursor-not-allowed grayscale' : ''}
+                                                        ${isToday && !isSelected ? 'border-[#A78BFA]/40' : ''}
+                                                    `}
+                                                >
+                                                    <span className="text-lg md:text-xl font-black tracking-tighter leading-none relative z-10">{d.num}</span>
+                                                    {isToday && <span className={`text-[7px] font-black absolute bottom-1 ${isSelected ? 'text-black/40' : 'text-[#A78BFA]'}`}>NOW</span>}
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+
+                                    {/* Availability Legend */}
+                                    <div className="flex flex-wrap items-center gap-6 px-4 py-3 bg-white/5 rounded-2xl border border-white/10">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-3 h-3 rounded-full bg-white/5 border border-white/10"></div>
+                                            <span className="text-[9px] font-black tracking-widest text-white/40 uppercase">Default - Available</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-3 h-3 rounded-full bg-orange-500/40 border border-orange-500/60"></div>
+                                            <span className="text-[9px] font-black tracking-widest text-orange-400 uppercase">Mild Orange - Partially Booked</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-3 h-3 rounded-full bg-white/10 border border-white/20"></div>
+                                            <span className="text-[9px] font-black tracking-widest text-white/20 uppercase">Grey - Fully Booked</span>
+                                        </div>
                                     </div>
 
                                     {/* Time Selection - Only if date is selected */}
@@ -563,49 +719,83 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                                 className="grid grid-cols-1 md:grid-cols-2 gap-6"
                                             >
                                                 {times.map((t, i) => {
+                                                    const isSelected = bookingData.times.includes(t)
                                                     const slot = bookingData.show === 'Space Booking'
-                                                        ? (VENUE_SLOTS[selectedLocation] || []).find(s => s.range === t)
+                                                        ? dynamicSlots.find(s => s.slot_range === t)
                                                         : null
+
+                                                    const isLocked = slot && slot.is_available === false;
+                                                    const isPartialDate = availability[bookingData.date_full]?.status === 'partial';
 
                                                     return (
                                                         <button
                                                             key={i}
+                                                            disabled={isLocked}
                                                             onClick={() => {
-                                                                if (slot) {
-                                                                    setBookingData(prev => ({
-                                                                        ...prev,
-                                                                        time: t,
-                                                                        slot_code: slot.code,
-                                                                        duration: slot.duration,
-                                                                        price: slot.price,
-                                                                        total: slot.total
-                                                                    }))
+                                                                if (isLocked) return;
+                                                                let newTimes = [...bookingData.times]
+                                                                let newCodes = [...bookingData.slot_codes]
+                                                                let newDurations = [...bookingData.durations]
+
+                                                                if (isSelected) {
+                                                                    newTimes = newTimes.filter(item => item !== t)
+                                                                    if (slot) {
+                                                                        newCodes = newCodes.filter(item => item !== (slot.slot_code || slot.code))
+                                                                        newDurations = newDurations.filter(item => item !== slot.duration)
+                                                                    }
                                                                 } else {
-                                                                    setBookingData(prev => ({ ...prev, time: t, price: 799, total: 799 }))
+                                                                    newTimes.push(t)
+                                                                    if (slot) {
+                                                                        newCodes.push(slot.slot_code || slot.code)
+                                                                        newDurations.push(slot.duration)
+                                                                    }
                                                                 }
+
+                                                                const basePricePerSlot = slot ? Number(slot.base_price || slot.price) : 799
+                                                                const subtotal = basePricePerSlot * newTimes.length
+                                                                const gst = Math.round(subtotal * 0.18)
+                                                                const total = subtotal + gst
+
+                                                                setBookingData(prev => ({
+                                                                    ...prev,
+                                                                    times: newTimes,
+                                                                    slot_codes: newCodes,
+                                                                    durations: newDurations,
+                                                                    price_per_slot: basePricePerSlot,
+                                                                    subtotal: subtotal,
+                                                                    gst: gst,
+                                                                    total: total,
+                                                                    tickets: newTimes.length
+                                                                }))
                                                             }}
-                                                            className={`p-10 rounded-[2.5rem] border text-left transition-all duration-700 relative overflow-hidden group ${bookingData.time === t ? 'bg-[#A78BFA] border-[#A78BFA] text-black shadow-[0_20px_40px_rgba(167,139,250,0.2)]' : 'bg-white/5 border-white/5 hover:border-[#A78BFA]/30'}`}
+                                                            className={`p-6 rounded-[2rem] border text-left transition-all duration-700 relative overflow-hidden group 
+                                                                ${isSelected ? 'bg-[#A78BFA] border-[#A78BFA] text-black shadow-[0_15px_30px_rgba(167,139,250,0.2)]' :
+                                                                    isLocked ? 'bg-white/10 border-white/5 opacity-40 cursor-not-allowed grayscale' :
+                                                                        'bg-white/5 border-white/5 hover:border-[#A78BFA]/30'}
+                                                            `}
                                                         >
-                                                            <div className="relative z-10 flex flex-col gap-2">
+                                                            <div className="relative z-10 flex flex-col gap-1">
                                                                 {slot && (
-                                                                    <div className={`text-[10px] font-black tracking-[0.3em] uppercase ${bookingData.time === t ? 'text-black/40' : 'text-[#A78BFA]'}`}>
-                                                                        Slot {slot.code} • {slot.duration}
+                                                                    <div className={`text-[9px] font-black tracking-[0.3em] uppercase ${isSelected ? 'text-black/40' : isLocked ? 'text-white/20' : 'text-[#A78BFA]'}`}>
+                                                                        Slot {slot.slot_code || slot.code} • {slot.duration}
                                                                     </div>
                                                                 )}
-                                                                <div className="text-2xl font-black tracking-tighter uppercase leading-none">
+                                                                <div className={`text-xl font-black tracking-tighter uppercase leading-none ${isLocked ? 'text-white/30' : ''}`}>
                                                                     {t}
                                                                 </div>
                                                                 {slot && (
-                                                                    <div className={`text-sm font-black italic mt-2 ${bookingData.time === t ? 'text-black/60' : 'text-white/40'}`}>
-                                                                        Total: ₹{slot.total}
+                                                                    <div className={`text-[10px] font-black italic mt-1 ${isSelected ? 'text-black/60' : isLocked ? 'text-white/20' : 'text-white/40'}`}>
+                                                                        {isLocked ? (slot.reason || 'Booked') : `Rate: ₹${Number(slot.base_price || slot.price).toLocaleString('en-IN')}`}
                                                                     </div>
                                                                 )}
                                                             </div>
-                                                            <div className="absolute top-0 right-0 p-8 h-full flex items-center justify-center opacity-0 group-hover:opacity-10 group-hover:translate-x-0 translate-x-4 transition-all duration-700">
-                                                                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                                                                </svg>
-                                                            </div>
+                                                            {!isLocked && (
+                                                                <div className="absolute top-0 right-0 p-8 h-full flex items-center justify-center opacity-0 group-hover:opacity-10 group-hover:translate-x-0 translate-x-4 transition-all duration-700">
+                                                                    <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                                                                    </svg>
+                                                                </div>
+                                                            )}
                                                         </button>
                                                     )
                                                 })}
@@ -614,10 +804,53 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                     </AnimatePresence>
                                 </div>
 
+                                {/* Step 02 Booking Summary */}
+                                {bookingData.times.length > 0 && (
+                                    <div className="mt-8 p-8 rounded-[2.5rem] bg-[#A78BFA]/5 border border-[#A78BFA]/20 space-y-6">
+                                        <div className="flex justify-between items-end border-b border-[#A78BFA]/10 pb-4">
+                                            <div className="space-y-1">
+                                                <div className="text-[9px] font-black tracking-[0.4em] text-[#A78BFA] uppercase">Selection Summary</div>
+                                                <div className="text-lg font-black text-white italic tracking-tighter uppercase">{bookingData.date}</div>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="text-[10px] font-black text-[#A78BFA] opacity-60">SELECTED SLOTS</div>
+                                                <div className="text-sm font-black text-white">{bookingData.times.length} Slots</div>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-3">
+                                            {bookingData.times.map((t, idx) => (
+                                                <div key={idx} className="flex justify-between items-center text-xs">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-[#A78BFA]"></div>
+                                                        <span className="font-medium text-white/70 uppercase">Slot: {t}</span>
+                                                    </div>
+                                                    <span className="font-black text-white/50">₹{bookingData.price_per_slot}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        <div className="pt-4 border-t border-[#A78BFA]/10 space-y-2">
+                                            <div className="flex justify-between items-center text-[10px] font-black tracking-widest text-white/40 uppercase">
+                                                <span>Subtotal</span>
+                                                <span>₹{bookingData.subtotal}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center text-[10px] font-black tracking-widest text-white/40 uppercase">
+                                                <span>GST (18%)</span>
+                                                <span>₹{bookingData.gst}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center pt-2">
+                                                <span className="text-[11px] font-black tracking-[0.3em] text-[#A78BFA] uppercase">Final Payable Amount</span>
+                                                <span className="text-2xl font-black text-white tracking-tighter">₹{bookingData.total}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div className="flex justify-between items-center pt-8 border-t border-white/5">
                                     <button onClick={prevStep} className="text-white/40 hover:text-[#A78BFA] text-[10px] font-black tracking-[0.6em] uppercase transition-colors">BACK</button>
                                     <button
-                                        disabled={!bookingData.date || !bookingData.time}
+                                        disabled={!bookingData.date || bookingData.times.length === 0}
                                         onClick={nextStep}
                                         className="px-14 py-5 bg-[#A78BFA] text-black rounded-full text-[10px] font-extrabold tracking-[0.6em] uppercase hover:scale-105 transition-all disabled:opacity-10 shadow-[0_20px_40px_rgba(167,139,250,0.2)]"
                                     >
@@ -646,7 +879,7 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                                 type="text"
                                                 value={bookingData.name}
                                                 onChange={(e) => setBookingData({ ...bookingData, name: e.target.value })}
-                                                className={`w-full bg-transparent border-b py-3 text-xl text-white focus:outline-none transition-all font-black placeholder:font-medium placeholder:text-white/20 uppercase ${formErrors.name ? 'border-red-500' : 'border-white/30 focus:border-[#A78BFA]'}`}
+                                                className={`w-full bg-transparent border-b py-3 text-lg text-white focus:outline-none transition-all font-black placeholder:font-medium placeholder:text-white/20 uppercase !leading-normal ${formErrors.name ? 'border-red-500' : 'border-white/30 focus:border-[#A78BFA]'}`}
                                                 placeholder="Identity Name"
                                             />
                                         </div>
@@ -656,7 +889,7 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                                 type="email"
                                                 value={bookingData.email}
                                                 onChange={(e) => setBookingData({ ...bookingData, email: e.target.value })}
-                                                className={`w-full bg-transparent border-b py-3 text-xl text-white focus:outline-none transition-all font-black placeholder:font-medium placeholder:text-white/20 uppercase ${formErrors.email ? 'border-red-500' : 'border-white/30 focus:border-[#A711FA]'}`}
+                                                className={`w-full bg-transparent border-b py-3 text-lg text-white focus:outline-none transition-all font-black placeholder:font-medium placeholder:text-white/20 uppercase !leading-normal ${formErrors.email ? 'border-red-500' : 'border-white/30 focus:border-[#A711FA]'}`}
                                                 placeholder="Nexus@domain.com"
                                             />
                                         </div>
@@ -669,28 +902,9 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                                     const value = e.target.value.replace(/[^0-9]/g, '');
                                                     setBookingData({ ...bookingData, phone: value });
                                                 }}
-                                                className={`w-full bg-transparent border-b py-3 text-xl text-white focus:outline-none transition-all font-black placeholder:font-medium placeholder:text-white/20 uppercase ${formErrors.phone ? 'border-red-500' : 'border-white/30 focus:border-[#A78BFA]'}`}
+                                                className={`w-full bg-transparent border-b py-3 text-lg text-white focus:outline-none transition-all font-black placeholder:font-medium placeholder:text-white/20 uppercase !leading-normal ${formErrors.phone ? 'border-red-500' : 'border-white/30 focus:border-[#A78BFA]'}`}
                                                 placeholder="910000000000"
                                             />
-                                        </div>
-
-                                        <div className="group relative">
-                                            <label className="text-[12px] font-black tracking-[0.4em] text-[#A78BFA] uppercase mb-4 block transition-colors">Slot Count</label>
-                                            <div className="flex items-center gap-6 bg-white/5 border border-white/10 w-fit p-2 rounded-2xl">
-                                                <button
-                                                    onClick={() => setBookingData(prev => ({ ...prev, tickets: Math.max(1, prev.tickets - 1) }))}
-                                                    className="w-10 h-10 rounded-xl bg-white/10 hover:bg-[#A78BFA] hover:text-black transition-all flex items-center justify-center font-black text-xl"
-                                                >
-                                                    -
-                                                </button>
-                                                <span className="text-2xl font-black w-12 text-center text-white">{bookingData.tickets}</span>
-                                                <button
-                                                    onClick={() => setBookingData(prev => ({ ...prev, tickets: Math.min(10, prev.tickets + 1) }))}
-                                                    className="w-10 h-10 rounded-xl bg-white/10 hover:bg-[#A78BFA] hover:text-black transition-all flex items-center justify-center font-black text-xl"
-                                                >
-                                                    +
-                                                </button>
-                                            </div>
                                         </div>
 
                                         <div className="group relative">
@@ -699,7 +913,7 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                                 type="text"
                                                 value={bookingData.purpose}
                                                 onChange={(e) => setBookingData({ ...bookingData, purpose: e.target.value })}
-                                                className="w-full bg-transparent border-b border-white/30 py-3 text-xl text-white focus:outline-none focus:border-[#A78BFA] transition-all font-black placeholder:font-medium placeholder:text-white/20 uppercase"
+                                                className="w-full bg-transparent border-b border-white/30 py-3 text-lg text-white focus:outline-none focus:border-[#A78BFA] transition-all font-black placeholder:font-medium placeholder:text-white/20 uppercase !leading-normal"
                                                 placeholder="e.g. Workshop, Training"
                                             />
                                         </div>
@@ -711,7 +925,7 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                                 rows="1"
                                                 value={bookingData.billing_address}
                                                 onChange={(e) => setBookingData({ ...bookingData, billing_address: e.target.value })}
-                                                className={`w-full bg-transparent border-b py-3 text-xl text-white focus:outline-none transition-all font-black placeholder:font-medium placeholder:text-white/20 uppercase resize-none ${formErrors.billing_address ? 'border-red-500' : 'border-white/30 focus:border-[#A78BFA]'}`}
+                                                className={`w-full bg-transparent border-b py-3 text-lg text-white focus:outline-none transition-all font-black placeholder:font-medium placeholder:text-white/20 uppercase !leading-normal resize-none ${formErrors.billing_address ? 'border-red-500' : 'border-white/30 focus:border-[#A78BFA]'}`}
                                                 placeholder="Street & Area"
                                             />
                                         </div>
@@ -722,7 +936,7 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                                     type="text"
                                                     value={bookingData.city}
                                                     onChange={(e) => setBookingData({ ...bookingData, city: e.target.value })}
-                                                    className={`w-full bg-transparent border-b py-3 text-xl text-white focus:outline-none transition-all font-black placeholder:font-medium placeholder:text-white/20 uppercase ${formErrors.city ? 'border-red-500' : 'border-white/30 focus:border-[#A78BFA]'}`}
+                                                    className={`w-full bg-transparent border-b py-3 text-lg text-white focus:outline-none transition-all font-black placeholder:font-medium placeholder:text-white/20 uppercase !leading-normal ${formErrors.city ? 'border-red-500' : 'border-white/30 focus:border-[#A78BFA]'}`}
                                                     placeholder="City"
                                                 />
                                             </div>
@@ -735,7 +949,7 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                                         const value = e.target.value.replace(/[^0-9]/g, '');
                                                         setBookingData({ ...bookingData, zip: value });
                                                     }}
-                                                    className={`w-full bg-transparent border-b py-3 text-xl text-white focus:outline-none transition-all font-black placeholder:font-medium placeholder:text-white/20 uppercase ${formErrors.zip ? 'border-red-500' : 'border-white/30 focus:border-[#A78BFA]'}`}
+                                                    className={`w-full bg-transparent border-b py-3 text-lg text-white focus:outline-none transition-all font-black placeholder:font-medium placeholder:text-white/20 uppercase !leading-normal ${formErrors.zip ? 'border-red-500' : 'border-white/30 focus:border-[#A78BFA]'}`}
                                                     placeholder="600001"
                                                 />
                                             </div>
@@ -746,7 +960,7 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                                 type="text"
                                                 value={bookingData.state}
                                                 onChange={(e) => setBookingData({ ...bookingData, state: e.target.value })}
-                                                className={`w-full bg-transparent border-b py-3 text-xl text-white focus:outline-none transition-all font-black placeholder:font-medium placeholder:text-white/20 uppercase ${formErrors.state ? 'border-red-500' : 'border-white/30 focus:border-[#A78BFA]'}`}
+                                                className={`w-full bg-transparent border-b py-3 text-lg text-white focus:outline-none transition-all font-black placeholder:font-medium placeholder:text-white/20 uppercase !leading-normal ${formErrors.state ? 'border-red-500' : 'border-white/30 focus:border-[#A78BFA]'}`}
                                                 placeholder="State"
                                             />
                                         </div>
@@ -756,7 +970,7 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                                 type="text"
                                                 value={bookingData.company_name}
                                                 onChange={(e) => setBookingData({ ...bookingData, company_name: e.target.value })}
-                                                className="w-full bg-transparent border-b border-white/30 py-3 text-xl text-white focus:outline-none focus:border-[#A78BFA] transition-all font-black placeholder:font-medium placeholder:text-white/20 uppercase"
+                                                className="w-full bg-transparent border-b border-white/30 py-3 text-lg text-white focus:outline-none focus:border-[#A78BFA] transition-all font-black placeholder:font-medium placeholder:text-white/20 uppercase !leading-normal"
                                                 placeholder="Nexus Corp"
                                             />
                                         </div>
@@ -766,7 +980,7 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                                 type="text"
                                                 value={bookingData.gst_number}
                                                 onChange={(e) => setBookingData({ ...bookingData, gst_number: e.target.value })}
-                                                className="w-full bg-transparent border-b border-white/30 py-3 text-xl text-white focus:outline-none focus:border-[#A78BFA] transition-all font-black placeholder:font-medium placeholder:text-white/20 uppercase"
+                                                className="w-full bg-transparent border-b border-white/30 py-3 text-lg text-white focus:outline-none focus:border-[#A78BFA] transition-all font-black placeholder:font-medium placeholder:text-white/20 uppercase !leading-normal"
                                                 placeholder="33AAAAA0000A1Z5"
                                             />
                                         </div>
@@ -849,16 +1063,16 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                     <div className="space-y-3 pt-8 border-t border-white/10 relative">
                                         <div className="flex justify-between items-center px-2 py-1">
                                             <span className="text-[9px] font-black tracking-widest text-white/40 uppercase">Base Price ({bookingData.tickets} Slot)</span>
-                                            <span className="text-base font-black text-white tracking-tight">₹{((bookingData.price || 799) * bookingData.tickets).toLocaleString()}</span>
+                                            <span className="text-base font-black text-white tracking-tight">₹{bookingData.subtotal.toLocaleString()}</span>
                                         </div>
                                         <div className="flex justify-between items-center px-2 py-1">
                                             <span className="text-[9px] font-black tracking-widest text-[#A78BFA] uppercase">GST (18%)</span>
-                                            <span className="text-base font-black text-white tracking-tight">₹{Math.round(((bookingData.price || 799) * bookingData.tickets) * 0.18).toLocaleString()}</span>
+                                            <span className="text-base font-black text-white tracking-tight">₹{bookingData.gst.toLocaleString()}</span>
                                         </div>
                                         <div className="flex justify-between items-center pt-6 mt-2 border-t-2 border-dashed border-white/10 px-2 py-2">
                                             <span className="text-xs font-black tracking-[0.4em] text-white uppercase italic">Final Total</span>
                                             <span className="text-3xl font-black text-[#A78BFA] tracking-tighter leading-none glow-text">
-                                                ₹{Math.round(((bookingData.price || 799) * bookingData.tickets) * 1.18).toLocaleString()}
+                                                ₹{bookingData.total.toLocaleString()}
                                             </span>
                                         </div>
                                     </div>
@@ -891,7 +1105,7 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                                                 </svg>
-                                                Pay ₹{Math.round((bookingData.price || 799) * bookingData.tickets * 1.18).toLocaleString()} via Razorpay
+                                                Pay ₹{bookingData.total.toLocaleString()} via Razorpay
                                             </>
                                         )}
                                     </button>
@@ -907,390 +1121,71 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                 initial="enter"
                                 animate="center"
                                 exit="exit"
-                                className="flex flex-col items-center py-2 space-y-6 w-full max-w-4xl relative"
+                                className="flex flex-col items-center py-10 space-y-8 w-full max-w-lg mx-auto text-center"
                             >
                                 <div className="relative">
                                     <motion.div
                                         initial={{ scale: 0 }}
                                         animate={{ scale: 1 }}
-                                        className="w-12 h-12 rounded-full bg-[#A78BFA] mx-auto flex items-center justify-center text-black shadow-[0_0_20px_rgba(167,139,250,0.3)]"
+                                        className="w-20 h-20 rounded-full bg-[#A78BFA] mx-auto flex items-center justify-center text-black shadow-[0_0_40px_rgba(167,139,250,0.4)]"
                                     >
-                                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                                         </svg>
                                     </motion.div>
                                 </div>
 
-                                {/* EXACT IMAGE TICKET CLONE */}
-                                {/* EXACT IMAGE TICKET CLONE */}
-                                <div
-                                    id="neural-ticket"
-                                    className="relative w-full aspect-[21/9] md:aspect-[21/8] bg-[#0A0A0A] rounded-xl overflow-hidden shadow-[0_50px_100px_-20px_rgba(0,0,0,1)] flex flex-row group select-none border border-white/5 mx-auto"
-                                >
-                                    {/* Left Sidebar - Ticket Number */}
-                                    <div className="w-8 md:w-12 lg:w-16 bg-black flex items-center justify-center border-r border-white/10 relative z-10">
-                                        <span className="text-white/80 text-[8px] md:text-xs font-medium tracking-widest uppercase -rotate-90 whitespace-nowrap">
-                                            Ticket Number : {bookingResponse?.bookingReference || 'TRANSMITTING...'}
-                                        </span>
-                                    </div>
-
-                                    {/* Main Body */}
-                                    <div className="relative flex-1 bg-cover bg-center overflow-hidden" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?q=80&w=1474&auto=format&fit=crop)' }}>
-                                        {/* Cinematic Dark Overlay */}
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
-                                        <div className="absolute inset-0 bg-black/30" />
-
-                                        {/* Stage Lights Glow Effect */}
-                                        <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-white/10 via-white/5 to-transparent blur-3xl" />
-
-                                        <div className="relative h-full p-3 md:p-8 lg:p-10 flex flex-col justify-between">
-                                            {/* Top Text - Large Headings */}
-                                            <div className="space-y-0 text-left">
-                                                <h1 className="text-lg md:text-3xl lg:text-5xl xl:text-6xl font-black text-white tracking-tighter leading-none uppercase max-w-[90%]">
-                                                    {bookingData.show || 'MEDAI PERFORMANCE'}
-                                                </h1>
-                                            </div>
-
-                                            {/* Middle/Bottom Info Container */}
-                                            <div className="flex flex-row items-end justify-between">
-                                                {/* Venue Info */}
-                                                <div className="space-y-0.5 md:space-y-1">
-                                                    <div className="text-xs md:text-xl lg:text-2xl font-black text-white uppercase italic tracking-tighter leading-tight">{bookingData.location || "Arena de Sole"}</div>
-                                                    <div className="text-[6px] md:text-[9px] lg:text-[10px] text-white/70 max-w-[100px] md:max-w-[180px] lg:max-w-[240px] leading-tight font-medium">123 Main Street, City, State, Insert Your Address Here</div>
-                                                </div>
-
-                                                {/* Date & Time */}
-                                                <div className="flex gap-3 md:gap-8 lg:gap-14 mb-0.5 md:mb-1">
-                                                    <div className="space-y-0 md:space-y-0.5">
-                                                        <div className="text-[7px] md:text-[10px] text-white/40 font-black uppercase tracking-widest leading-none">Date :</div>
-                                                        <div className="text-[10px] md:text-lg lg:text-xl font-black text-white whitespace-nowrap uppercase tracking-tighter leading-none">{bookingData.date || "September 15, 2024"}</div>
-                                                    </div>
-                                                    <div className="space-y-0 md:space-y-0.5">
-                                                        <div className="text-[7px] md:text-[10px] text-white/40 font-black uppercase tracking-widest leading-none">Time :</div>
-                                                        <div className="text-[10px] md:text-lg lg:text-xl font-black text-white whitespace-nowrap uppercase tracking-tighter leading-none">{bookingData.time || "5:00 PM"}</div>
-                                                    </div>
-                                                </div>
-
-                                                {/* Live Performance Arrows */}
-                                                <div className="hidden lg:flex flex-col items-center gap-1 mb-1">
-                                                    <div className="flex text-white space-x-[-10px] lg:space-x-[-12px]">
-                                                        {[1, 2, 3].map(i => (
-                                                            <svg key={i} className="w-6 h-6 lg:w-10 lg:h-10" fill="currentColor" viewBox="0 0 24 24">
-                                                                <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z" />
-                                                            </svg>
-                                                        ))}
-                                                    </div>
-                                                    <div className="text-[7px] lg:text-[9px] font-black tracking-[0.4em] text-white/60 uppercase">Live Performance</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Perforation Line */}
-                                    <div className="relative w-px flex flex-col items-center justify-between z-20">
-                                        {/* Notches */}
-                                        <div className="absolute top-0 -translate-y-1/2 w-8 h-8 md:w-12 md:h-12 rounded-full bg-[#030303] border-b border-white/5" />
-                                        <div className="flex-1 w-full border-l-[1px] md:border-l-2 border-dashed border-white/20 my-4 md:my-6" />
-                                        <div className="absolute bottom-0 translate-y-1/2 w-8 h-8 md:w-12 md:h-12 rounded-full bg-[#030303] border-t border-white/5" />
-                                    </div>
-
-                                    {/* Right Section (Stub) */}
-                                    <div className="w-[32%] md:w-[30%] bg-[#0A0A0A] p-2 md:p-8 flex flex-col items-center relative">
-                                        {/* QR Code */}
-                                        <div className="w-14 h-14 md:w-32 md:h-32 bg-white p-1 md:p-2 rounded-sm shadow-xl mt-1 md:mt-2 flex-shrink-0">
-                                            <img
-                                                src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=MEDAI-PASS-${bookingData.name}-${Date.now()}`}
-                                                alt="QR Code"
-                                                className="w-full h-full"
-                                            />
-                                        </div>
-
-                                        {/* Vertical Text and Info Stack Wrapper */}
-                                        <div className="flex-1 w-full flex flex-row items-center justify-center gap-1.5 md:gap-8 mt-2 md:mt-8">
-                                            {/* Vertical Text */}
-                                            <div className="h-full flex items-center justify-center">
-                                                <span className="text-[10px] md:text-3xl font-black text-white tracking-[0.1em] -rotate-90 uppercase whitespace-nowrap opacity-90">
-                                                    ADMIT {bookingData.tickets} {bookingData.tickets > 1 ? 'SLOTS' : 'SLOT'}
-                                                </span>
-                                            </div>
-
-                                            {/* Vertical Divider */}
-                                            <div className="h-10 md:h-32 w-[1px] bg-white/20" />
-
-                                            {/* Vertical Info Stack */}
-                                            <div className="flex flex-col justify-center gap-1 md:gap-5">
-                                                <div className="flex flex-col">
-                                                    <span className="text-[6px] md:text-[9px] font-bold text-white/40 uppercase tracking-tighter">Gate</span>
-                                                    <span className="text-[10px] md:text-xl font-black text-white tracking-widest leading-none">01</span>
-                                                </div>
-                                                <div className="flex flex-col">
-                                                    <span className="text-[6px] md:text-[9px] font-bold text-white/40 uppercase tracking-tighter">Row</span>
-                                                    <span className="text-[10px] md:text-xl font-black text-white tracking-widest leading-none">02</span>
-                                                </div>
-                                                <div className="flex flex-col">
-                                                    <span className="text-[6px] md:text-[9px] font-bold text-white/40 uppercase tracking-tighter">Seat</span>
-                                                    <span className="text-[10px] md:text-xl font-black text-white tracking-widest leading-none">03</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
+                                <div className="space-y-4">
+                                    <h2 className="text-4xl md:text-5xl font-black text-white tracking-tighter uppercase leading-none">
+                                        Booking Confirmed
+                                    </h2>
+                                    <p className="text-[#A78BFA] text-xs font-black tracking-[0.4em] uppercase">
+                                        Reference: {bookingResponse?.bookingReference || 'Processing...'}
+                                    </p>
                                 </div>
 
-                                {/* Invoice Actions */}
-                                {bookingResponse?.zohoInvoiceId ? (
-                                    <div className="flex flex-col items-center gap-3 w-full animate-in fade-in duration-700">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                                            <div className="text-[9px] font-black tracking-[0.4em] text-green-400 uppercase italic">Invoice Generated</div>
-                                        </div>
-                                        <div className="flex gap-3 w-full max-w-sm">
-                                            {/* Download Invoice PDF */}
-                                            <a
-                                                href={bookingResponse.invoiceDownloadPath}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                download
-                                                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[#A78BFA] text-black rounded-2xl text-[9px] font-black tracking-[0.3em] uppercase hover:scale-105 transition-all shadow-[0_10px_30px_rgba(167,139,250,0.3)]"
-                                            >
-                                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                <p className="text-white/60 text-sm leading-relaxed max-w-xs mx-auto">
+                                    Your slots have been secured. A confirmation with your booking details has been sent to <span className="text-white font-bold">{bookingData.email}</span>.
+                                </p>
+
+                                <div className="flex flex-col w-full gap-4 pt-6">
+                                    {/* Download Official Invoice Button ONLY */}
+                                    <button
+                                        disabled={!invoiceStatus.ready}
+                                        onClick={() => {
+                                            if (invoiceStatus.invoiceDownloadPath) {
+                                                window.open(invoiceStatus.invoiceDownloadPath, '_blank')
+                                            }
+                                        }}
+                                        className={`w-full flex items-center justify-center gap-4 py-6 rounded-[2rem] border transition-all transform hover:scale-[1.02] ${invoiceStatus.ready
+                                            ? 'bg-[#A78BFA] border-[#A78BFA] text-black shadow-[0_20px_40px_rgba(167,139,250,0.2)] cursor-pointer hover:bg-white'
+                                            : 'bg-white/5 border-white/10 text-white/40 cursor-not-allowed'
+                                            }`}
+                                    >
+                                        {invoiceStatus.polling && !invoiceStatus.ready ? (
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-5 h-5 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+                                                <span className="text-[10px] font-black tracking-widest uppercase">Generating Invoice...</span>
+                                            </div>
+                                        ) : invoiceStatus.ready ? (
+                                            <>
+                                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                                 </svg>
-                                                Download Invoice
-                                            </a>
-                                            {/* View in Zoho Portal */}
-                                            {bookingResponse.zohoInvoiceUrl && (
-                                                <a
-                                                    href={bookingResponse.zohoInvoiceUrl}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 border border-[#A78BFA]/30 bg-[#A78BFA]/5 text-[#A78BFA] rounded-2xl text-[9px] font-black tracking-[0.3em] uppercase hover:scale-105 transition-all"
-                                                >
-                                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                                    </svg>
-                                                    View Invoice
-                                                </a>
-                                            )}
-                                        </div>
-                                        <div className="text-[8px] text-white/20 font-medium tracking-widest">
-                                            Invoice also sent to {bookingData.email}
-                                        </div>
-                                    </div>
-                                ) : bookingResponse ? (
-                                    <div className="flex flex-col items-center gap-2 py-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-4 h-4 rounded-full border-2 border-[#A78BFA]/20 border-t-[#A78BFA] animate-spin" />
-                                            <div className="text-[9px] font-black tracking-[0.3em] text-[#A78BFA] uppercase animate-pulse">
-                                                Finalizing Official Invoice...
-                                            </div>
-                                        </div>
-                                        <div className="text-[8px] text-white/20 font-medium tracking-widest text-center mt-1">
-                                            Please wait a moment while we synchronize with Zoho
-                                        </div>
-                                    </div>
-                                ) : null}
-
-                                <div className="flex flex-col md:flex-row gap-3 justify-center pt-2 w-full max-w-sm">
-                                    <button
-                                        onClick={() => {
-                                            const canvas = document.createElement('canvas');
-                                            canvas.width = 1200;
-                                            canvas.height = 400;
-                                            const ctx = canvas.getContext('2d');
-
-                                            const draw = (bgImg = null, qrImg = null) => {
-                                                // Background
-                                                ctx.fillStyle = '#0A0A0A';
-                                                ctx.fillRect(0, 0, 1200, 400);
-
-                                                // Left Sidebar
-                                                ctx.fillStyle = '#000000';
-                                                ctx.fillRect(0, 0, 80, 400);
-
-                                                // Vertical Ticket Number
-                                                ctx.save();
-                                                ctx.translate(45, 200);
-                                                ctx.rotate(-Math.PI / 2);
-                                                ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-                                                ctx.font = '700 16px Arial';
-                                                ctx.textAlign = 'center';
-                                                ctx.fillText('TICKET NUMBER : ' + (bookingResponse?.bookingReference || 'MEDAI-XXXXXX'), 0, 0);
-                                                ctx.restore();
-
-                                                // Main Body Background
-                                                if (bgImg) {
-                                                    ctx.drawImage(bgImg, 80, 0, 810, 400);
-                                                    const grad = ctx.createLinearGradient(0, 0, 0, 400);
-                                                    grad.addColorStop(0, 'rgba(0,0,0,0.3)');
-                                                    grad.addColorStop(0.5, 'rgba(0,0,0,0.4)');
-                                                    grad.addColorStop(1, 'rgba(0,0,0,0.8)');
-                                                    ctx.fillStyle = grad;
-                                                    ctx.fillRect(80, 0, 810, 400);
-                                                }
-
-                                                // Headings
-                                                ctx.fillStyle = '#FFFFFF';
-                                                ctx.font = '900 65px Arial Black';
-                                                ctx.fillText('REALLY GREAT', 120, 110);
-
-                                                ctx.fillStyle = '#FFFFFF';
-                                                ctx.fillRect(115, 130, 360, 85);
-                                                ctx.fillStyle = '#000000';
-                                                ctx.font = '900 65px Arial Black';
-                                                ctx.fillText(bookingData.show ? bookingData.show.split(' ').pop().toUpperCase() : 'CONCERT', 125, 195);
-
-                                                // Bottom Info
-                                                ctx.fillStyle = '#FFFFFF';
-                                                ctx.font = 'italic 900 24px Arial Black';
-                                                ctx.fillText(bookingData.location || "ARENA DE SOLE", 120, 330);
-                                                ctx.font = '400 14px Arial';
-                                                ctx.fillText('123 MAIN STREET, CITY, STATE, INSERT ADDRESS', 120, 355);
-
-                                                // Date & Time
-                                                ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-                                                ctx.font = '900 14px Arial';
-                                                ctx.fillText('DATE :', 550, 320);
-                                                ctx.fillText('TIME :', 730, 320);
-
-                                                ctx.fillStyle = '#FFFFFF';
-                                                ctx.font = '900 22px Arial Black';
-                                                ctx.fillText(bookingData.date || "SEP 15, 2024", 550, 355);
-                                                ctx.fillText(bookingData.time || "5:00 PM", 730, 355);
-
-                                                // Perforation
-                                                ctx.fillStyle = '#030303';
-                                                ctx.beginPath(); ctx.arc(890, 0, 25, 0, Math.PI * 2); ctx.fill();
-                                                ctx.beginPath(); ctx.arc(890, 400, 25, 0, Math.PI * 2); ctx.fill();
-
-                                                ctx.setLineDash([10, 10]);
-                                                ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-                                                ctx.lineWidth = 2;
-                                                ctx.beginPath();
-                                                ctx.moveTo(890, 30);
-                                                ctx.lineTo(890, 370);
-                                                ctx.stroke();
-                                                ctx.setLineDash([]);
-
-                                                // Stub background
-                                                ctx.fillStyle = '#0A0A0A';
-                                                ctx.fillRect(890, 0, 310, 400);
-
-                                                // QR Code
-                                                ctx.fillStyle = '#FFFFFF';
-                                                ctx.fillRect(980, 40, 130, 130);
-                                                if (qrImg) {
-                                                    ctx.drawImage(qrImg, 985, 45, 120, 120);
-                                                }
-
-                                                // Vertical Separator Line (Stub side)
-                                                ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-                                                ctx.lineWidth = 1;
-                                                ctx.beginPath();
-                                                ctx.moveTo(1055, 210);
-                                                ctx.lineTo(1055, 360);
-                                                ctx.stroke();
-
-                                                // ADMIT ONE - Positioned to the left of the divider
-                                                ctx.save();
-                                                ctx.translate(990, 285);
-                                                ctx.rotate(-Math.PI / 2);
-                                                ctx.fillStyle = '#FFFFFF';
-                                                ctx.font = '900 30px Arial Black';
-                                                ctx.textAlign = 'center';
-                                                ctx.textBaseline = 'middle';
-                                                ctx.fillText('ADMIT ONE', 0, 0);
-                                                ctx.restore();
-
-                                                // Vertical Info Stack - Positioned to the right of the divider
-                                                ctx.textAlign = 'left';
-                                                ctx.textBaseline = 'top';
-
-                                                const stackX = 1080;
-                                                const startY = 220;
-                                                const spacing = 50;
-
-                                                ['GATE', 'ROW', 'SEAT'].forEach((label, i) => {
-                                                    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-                                                    ctx.font = '700 12px Arial';
-                                                    ctx.fillText(label, stackX, startY + i * spacing);
-
-                                                    ctx.fillStyle = '#FFFFFF';
-                                                    ctx.font = '900 20px Arial Black';
-                                                    ctx.fillText(i === 0 ? '01' : i === 1 ? '02' : '03', stackX, startY + i * spacing + 18);
-                                                });
-
-                                                // Final Download Action
-                                                const link = document.createElement('a');
-                                                link.download = `MEDAI-Ticket-${bookingData.name || 'Nexus'}.png`;
-                                                link.href = canvas.toDataURL('image/png');
-                                                link.click();
-                                            };
-
-                                            // Preloader for both images
-                                            let loadedCount = 0;
-                                            const bgImg = new Image();
-                                            const qrImg = new Image();
-
-                                            const checkAllLoaded = () => {
-                                                loadedCount++;
-                                                if (loadedCount === 2) draw(bgImg, qrImg);
-                                            };
-
-                                            bgImg.crossOrigin = "anonymous";
-                                            bgImg.onload = checkAllLoaded;
-                                            bgImg.onerror = checkAllLoaded; // Draw even if bg fails
-                                            bgImg.src = 'https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?q=80&w=1474&auto=format&fit=crop';
-
-                                            qrImg.crossOrigin = "anonymous";
-                                            qrImg.onload = checkAllLoaded;
-                                            qrImg.onerror = checkAllLoaded; // Draw even if qr fails
-                                            qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=MEDAI-PASS-${bookingResponse?.bookingReference || bookingData.name}`;
-                                        }}
-                                        className="flex-1 flex items-center justify-center gap-3 px-6 py-4 bg-white text-black border border-white rounded-full group hover:bg-[#00f2ff] hover:text-black hover:border-[#00f2ff] transition-all transform hover:scale-105"
-                                    >
-                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a2 2 0 002 2h12 a2 2 0 002-2v-1M7 10l5 5 5-5M12 4v11" />
-                                        </svg>
-                                        <span className="text-[10px] font-black tracking-widest uppercase">Download Pass</span>
+                                                <span className="text-[11px] font-black tracking-widest uppercase">Download Official Invoice</span>
+                                            </>
+                                        ) : (
+                                            <span className="text-[10px] font-black tracking-widest uppercase opacity-50">Invoice Generation Pending</span>
+                                        )}
                                     </button>
+
                                     <button
-                                        onClick={() => {
-                                            const eventName = encodeURIComponent(`MEDAI: ${bookingData.show || 'Performance'}`);
-                                            const details = encodeURIComponent(`Witness the neural frequency at ${bookingData.location}. Ticket: ${bookingData.tickets} persons.`);
-                                            const location = encodeURIComponent(bookingData.location || 'MEDAI Hub');
-
-                                            // Date/Time Parsing for Google Calendar (YYYYMMDDTHHMMSSZ)
-                                            const monthMap = { 'JAN': '01', 'FEB': '02', 'MAR': '03', 'APR': '04', 'MAY': '05', 'JUN': '06', 'JUL': '07', 'AUG': '08', 'SEP': '09', 'OCT': '10', 'NOV': '11', 'DEC': '12' };
-                                            const dateParts = (bookingData.date || "12 FEB").split(' ');
-                                            const day = dateParts[0].padStart(2, '0');
-                                            const month = monthMap[dateParts[1].toUpperCase()] || '02';
-
-                                            const timeParts = (bookingData.time || "19:00").split(':');
-                                            const hh = timeParts[0];
-                                            const mm = timeParts[1];
-
-                                            const startStr = `2026${month}${day}T${hh}${mm}00`;
-                                            const endHour = (parseInt(hh) + 2).toString().padStart(2, '0');
-                                            const endStr = `2026${month}${day}T${endHour}${mm}00`;
-
-                                            const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=${eventName}&details=${details}&location=${location}&dates=${startStr}/${endStr}`;
-                                            window.open(url, '_blank');
-                                        }}
-                                        className="flex-1 flex items-center justify-center gap-3 px-6 py-4 bg-transparent border border-white/20 rounded-full group hover:border-[#A78BFA]/40 transition-all transform hover:scale-105"
+                                        onClick={onClose}
+                                        className="w-full py-5 border border-white/10 rounded-2xl text-[10px] font-black tracking-widest uppercase text-white/40 hover:text-white hover:bg-white/5 transition-all"
                                     >
-                                        <svg className="w-3.5 h-3.5 text-[#A78BFA]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 002-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                        </svg>
-                                        <span className="text-[10px] font-black tracking-widest text-white/60 group-hover:text-white uppercase">Sync Calendar</span>
+                                        Return to Home
                                     </button>
                                 </div>
-
-                                <button
-                                    onClick={onClose}
-                                    className="px-10 py-4 border border-white/5 rounded-full text-[10px] font-black tracking-[0.6em] uppercase text-white/40 hover:text-white hover:bg-white/5 transition-all mt-2"
-                                >
-                                    Return to Origin
-                                </button>
                             </motion.div>
                         )}
                     </AnimatePresence>
@@ -1299,3 +1194,4 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
         </motion.div>
     )
 }
+

@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import { useState, useEffect } from 'react'
 
 export default function Footer({ tier = 2 }) {
     const isLowTier = tier === 0
@@ -14,6 +15,20 @@ export default function Footer({ tier = 2 }) {
         }
         document.getElementById(sectionMap[id])?.scrollIntoView({ behavior: 'smooth' })
     }
+
+    const [settings, setSettings] = useState({
+        contact_email: 'medaibookings@gmail.com',
+        contact_phone: '+91 98765 43210'
+    })
+
+    useEffect(() => {
+        fetch('/backend/api/site_settings.php')
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) setSettings(data.data)
+            })
+            .catch(err => console.error('Error fetching settings:', err))
+    }, [])
 
     return (
         <footer className="relative pt-16 pb-12 px-6 bg-[#030303] z-20 overflow-hidden border-t border-[#A78BFA]/10">
@@ -91,12 +106,12 @@ export default function Footer({ tier = 2 }) {
                         <span className="text-[11px] md:text-xs font-black tracking-[0.5em] block mb-8 text-[#A78BFA] opacity-80 uppercase">Get in Touch</span>
                         <div className="space-y-4">
                             <div>
-                                <a href="mailto:info@medai.org" className="font-black text-lg tracking-tighter hover:text-[#A78BFA] transition-colors text-white block">
-                                    info@medai.org
+                                <a href={`mailto:${settings.contact_email}`} className="font-black text-lg tracking-tighter hover:text-[#A78BFA] transition-colors text-white block">
+                                    {settings.contact_email}
                                 </a>
                             </div>
                             <div>
-                                <p className="text-white/50 text-sm font-medium">+91 98765 43210</p>
+                                <p className="text-white/50 text-sm font-medium">{settings.contact_phone}</p>
                             </div>
                         </div>
 

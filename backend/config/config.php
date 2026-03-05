@@ -1,10 +1,11 @@
 <?php
 // Database Configuration
-define('DB_HOST', 'localhost');
-define('DB_NAME', 'u891495087_medai_db1');
-define('DB_USER', 'u891495087_medai_db1');
-define('DB_PASS', 'Medai@12345');
+define('DB_HOST', '127.0.0.1');
+define('DB_NAME', 'test');
+define('DB_USER', 'root');
+define('DB_PASS', '');
 define('DB_CHARSET', 'utf8mb4');
+
 
 // Application Configuration
 define('APP_NAME', 'MEDAI Admin Panel');
@@ -14,6 +15,7 @@ define('ADMIN_EMAIL', 'admin@medai.in');
 // Razorpay Payment Gateway
 define('RAZORPAY_KEY_ID', 'rzp_live_SLWf2Pz5BbSSBU');
 define('RAZORPAY_KEY_SECRET', 'R5AlXQSs4g5l3bqlSVuoRrkW');
+
 
 // MSG91 WhatsApp & SMS Notifications
 // Get your authkey from: https://msg91.com/dashboard
@@ -54,7 +56,7 @@ date_default_timezone_set('Asia/Kolkata');
 
 // Error Reporting (disable in production)
 error_reporting(E_ALL);
-ini_set('display_errors', 0);
+ini_set('display_errors', 1);
 
 // Database Connection Class
 class Database {

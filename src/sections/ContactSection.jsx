@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 const INQUIRY_TYPES = [
     'Select inquiry type',
@@ -21,10 +21,10 @@ const locations = [
     },
     {
         city: "MEDAI Bengaluru",
-        address: "456 Inner Ring Road",
-        area: "Koramangala 5th Block",
-        pin: "Bengaluru - 560095",
-        email: "bangalore@medai.org",
+        address: "Museum Rd, opp. Patricks Church",
+        area: "Shanthala Nagar, Richmond Town",
+        pin: "Bengaluru, Karnataka - 560025",
+        email: "medaibookings@gmail.com",
         phone: "+91 98765 43211"
     },
     {
@@ -47,6 +47,19 @@ export default function ContactSection({ tier = 2, isMobile = false }) {
         message: ''
     })
     const [submitted, setSubmitted] = useState(false)
+    const [settings, setSettings] = useState({
+        contact_email: 'medaibookings@gmail.com',
+        contact_phone: '+91 98765 43210'
+    })
+
+    useEffect(() => {
+        fetch('/backend/api/site_settings.php')
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) setSettings(data.data)
+            })
+            .catch(err => console.error('Error fetching settings:', err))
+    }, [])
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -160,7 +173,7 @@ export default function ContactSection({ tier = 2, isMobile = false }) {
                                     <span className="text-[#A78BFA] text-xs font-black">✉</span>
                                 </div>
                                 <div>
-                                    <p className="text-white font-black text-lg tracking-tight hover:text-[#A78BFA] transition-colors cursor-pointer">info@medai.org</p>
+                                    <p className="text-white font-black text-lg tracking-tight hover:text-[#A78BFA] transition-colors cursor-pointer">{settings.contact_email}</p>
                                     <p className="text-white/30 text-xs tracking-widest uppercase font-bold">General Contact</p>
                                 </div>
                             </div>
@@ -169,7 +182,7 @@ export default function ContactSection({ tier = 2, isMobile = false }) {
                                     <span className="text-[#A78BFA] text-xs font-black">☎</span>
                                 </div>
                                 <div>
-                                    <p className="text-white font-black text-lg tracking-tight">+91 98765 43210</p>
+                                    <p className="text-white font-black text-lg tracking-tight">{settings.contact_phone}</p>
                                     <p className="text-white/30 text-xs tracking-widest uppercase font-bold">10AM – 8PM IST</p>
                                 </div>
                             </div>

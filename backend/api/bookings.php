@@ -86,7 +86,7 @@ try {
 
         // Integrate Zoho Invoice
         require_once '../config/ZohoInvoiceService.php';
-        $zohoInvoiceId = ZohoInvoiceService::createInvoice([
+        $zohoData = ZohoInvoiceService::createInvoice([
             'name' => $name,
             'email' => $email,
             'phone' => $phone,
@@ -106,6 +106,8 @@ try {
             'zip' => $zipCode
         ]);
 
+        $zohoInvoiceId = $zohoData['invoice_id'] ?? null;
+
         // Update booking with Zoho Invoice ID if needed
         if ($zohoInvoiceId) {
             $stmt = $db->prepare("UPDATE bookings SET special_requests = CONCAT(special_requests, '\nZoho Invoice ID: ', ?) WHERE booking_reference = ?");
@@ -115,7 +117,9 @@ try {
         sendResponse(true, [
             'bookingReference' => $bookingRef,
             'totalAmount' => $totalAmount,
-            'zohoInvoiceId' => $zohoInvoiceId
+            'zohoInvoiceId' => $zohoInvoiceId,
+            'zohoInvoiceUrl' => $zohoData['invoice_url'] ?? null,
+            'invoiceDownloadPath' => $zohoInvoiceId ? '/backend/api/invoice_download.php?invoice_id=' . urlencode($zohoInvoiceId) : null
         ], 'Booking created successfully', 201);
         
     } elseif ($method === 'GET') {
@@ -144,6 +148,16 @@ try {
             $params[] = $search;
             $params[] = $search;
             $params[] = $search;
+        }
+
+        // Date range filters
+        if (!empty($_GET['fromDate'])) {
+            $where[] = "DATE(created_at) >= ?";
+            $params[] = $_GET['fromDate'];
+        }
+        if (!empty($_GET['toDate'])) {
+            $where[] = "DATE(created_at) <= ?";
+            $params[] = $_GET['toDate'];
         }
         
         $whereClause = !empty($where) ? 'WHERE ' . implode(' AND ', $where) : '';

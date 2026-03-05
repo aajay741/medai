@@ -35,7 +35,13 @@ if (!$booking) {
 $unitRate = 0;
 $loc = strtoupper($booking['location']);
 if ($booking['ticket_type'] === 'Space Rental') {
-    if ($loc === 'CHENNAI') $unitRate = 15000;
+    if ($loc === 'CHENNAI') {
+        if (strpos($booking['event_time'], '07:00 AM') !== false || strpos($booking['special_requests'], 'C1') !== false) {
+             $unitRate = 1;
+        } else {
+             $unitRate = 15000;
+        }
+    }
     elseif ($loc === 'BANGALORE' || $loc === 'BENGALURU') $unitRate = 45000;
     elseif ($loc === 'COIMBATORE') $unitRate = 30000;
     else $unitRate = 15000;
@@ -46,7 +52,7 @@ if ($booking['ticket_type'] === 'Space Rental') {
 
 // ── Generate Invoice ────────────────────────────────────────────────────────
 try {
-    $zohoInvoiceId = ZohoInvoiceService::createInvoice([
+    $zohoData = ZohoInvoiceService::createInvoice([
         'name'            => $booking['name'],
         'email'           => $booking['email'],
         'phone'           => $booking['phone'],
@@ -66,11 +72,12 @@ try {
         'zip'             => $booking['zip_code']
     ]);
 
-    if ($zohoInvoiceId) {
+    if ($zohoData && isset($zohoData['invoice_id'])) {
+        $zohoInvoiceId  = $zohoData['invoice_id'];
+        $zohoInvoiceUrl = $zohoData['invoice_url'] ?? '';
+
         $upd = $db->prepare("UPDATE bookings SET special_requests = CONCAT(special_requests, '\nZoho Invoice ID: ', ?) WHERE booking_reference = ?");
         $upd->execute([$zohoInvoiceId, $bookingRef]);
-
-        $zohoInvoiceUrl = ZohoInvoiceService::getInvoicePortalUrl($zohoInvoiceId);
 
         // ── Send Confirmation Email using PHP mail() ──
         $to = $booking['email'];

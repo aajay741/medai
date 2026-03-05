@@ -4,9 +4,19 @@ class ZohoInvoiceService {
     private static $accessToken = null;
 
     // ── AUTH ────────────────────────────────────────────────────────────────────
-    private static function getAccessToken() {
+    public static function getAccessToken() {
         if (self::$accessToken !== null) return self::$accessToken;
 
+        $cacheFile = __DIR__ . '/zoho_token_cache.json';
+        if (file_exists($cacheFile)) {
+            $cache = json_decode(file_get_contents($cacheFile), true);
+            if ($cache && isset($cache['access_token']) && $cache['expires_at'] > time() + 60) {
+                self::$accessToken = $cache['access_token'];
+                return self::$accessToken;
+            }
+        }
+
+        error_log("Zoho: Fetching fresh access token...");
         $curl = curl_init();
         curl_setopt_array($curl, [
             CURLOPT_URL            => ZOHO_AUTH_URL,
@@ -20,14 +30,20 @@ class ZohoInvoiceService {
             ])
         ]);
 
-        $response = json_decode(curl_exec($curl), true);
+        $rawResponse = curl_exec($curl);
+        $response = json_decode($rawResponse, true);
         curl_close($curl);
 
         if (isset($response['access_token'])) {
             self::$accessToken = $response['access_token'];
+            file_put_contents($cacheFile, json_encode([
+                'access_token' => self::$accessToken,
+                'expires_at'   => time() + ($response['expires_in'] ?? 3550)
+            ]));
             return self::$accessToken;
         }
 
+        error_log("Zoho Auth Failed: " . $rawResponse);
         throw new Exception("Failed to get Zoho Access Token: " . ($response['error'] ?? 'Unknown error'));
     }
 
@@ -37,6 +53,8 @@ class ZohoInvoiceService {
         $email = $bookingData['email'];
         $phone = $bookingData['phone'];
         $token = self::getAccessToken();
+
+        error_log("Zoho: Searching/Creating customer for $email");
 
         // Search by email first
         $curl = curl_init();
@@ -49,14 +67,22 @@ class ZohoInvoiceService {
         curl_close($curl);
 
         if (!empty($response['contacts'])) {
-            return $response['contacts'][0]['contact_id'];
+            $contactId = $response['contacts'][0]['contact_id'];
+            error_log("Zoho: Found existing contact: $contactId");
+            return $contactId;
         }
 
+        error_log("Zoho: Creating new customer...");
         // Create new customer
         $curl = curl_init();
+        
+        $billing_addr = mb_substr($bookingData['billing_address'] ?? '', 0, 80);
+        $city = mb_substr($bookingData['city'] ?? '', 0, 40);
+        $state = mb_substr($bookingData['state'] ?? '', 0, 40);
+        
         $contactData = [
-            'contact_name'    => ($bookingData['company_name'] ?? '') ?: $name,
-            'company_name'    => ($bookingData['company_name'] ?? '') ?: $name,
+            'contact_name'    => $name,
+            'company_name'    => $bookingData['company_name'] ?? '',
             'contact_type'    => 'customer',
             'gst_no'          => $bookingData['gst_number'] ?? '',
             'contact_persons' => [[
@@ -66,10 +92,10 @@ class ZohoInvoiceService {
                 'is_primary_contact' => true
             ]],
             'billing_address' => [
-                'address' => substr($bookingData['billing_address'] ?? '', 0, 95),
-                'city'    => $bookingData['city']    ?? '',
-                'state'   => $bookingData['state']   ?? '',
-                'zip'     => $bookingData['zip']     ?? '',
+                'address' => $billing_addr,
+                'city'    => $city,
+                'state'   => $state,
+                'zip'     => mb_substr($bookingData['zip'] ?? '', 0, 15),
                 'country' => 'India'
             ]
         ];
@@ -89,80 +115,78 @@ class ZohoInvoiceService {
         curl_close($curl);
 
         if (isset($response['contact']['contact_id'])) {
+            error_log("Zoho: Created new customer ID: " . $response['contact']['contact_id']);
             return $response['contact']['contact_id'];
         }
 
+        error_log("Zoho: Failed to create customer - " . json_encode($response));
         throw new Exception("Failed to create Zoho Contact: " . ($response['message'] ?? 'Unknown error'));
     }
 
     // ── CREATE INVOICE ──────────────────────────────────────────────────────────
     public static function createInvoice($bookingData) {
-        try {
-            $token      = self::getAccessToken();
-            $customerId = self::getOrCreateCustomer($bookingData);
+        error_log("Zoho: Starting createInvoice process...");
+        $token      = self::getAccessToken();
+        $customerId = self::getOrCreateCustomer($bookingData);
 
-            $lineItem = [
-                'name'           => $bookingData['show_title'] . " — " . $bookingData['location'],
-                'description'    => "Booking: " . $bookingData['event_date'] . " at " . $bookingData['event_time']
-                                  . " | " . $bookingData['ticket_type'] . " × " . $bookingData['quantity']
-                                  . " | Ref: " . $bookingData['booking_reference'],
-                'rate'           => $bookingData['price_per_unit'],
-                'quantity'       => $bookingData['quantity'],
-                'tax_name'       => 'GST (18%)',
-                'tax_percentage' => 18
-            ];
+        $lineItem = [
+            'name'           => $bookingData['show_title'] . " — " . $bookingData['location'],
+            'description'    => "Booking: " . $bookingData['event_date'] . " at " . $bookingData['event_time']
+                              . " | " . $bookingData['ticket_type'] . " × " . $bookingData['quantity']
+                              . " | Ref: " . $bookingData['booking_reference'],
+            'rate'           => $bookingData['price_per_unit'],
+            'quantity'       => $bookingData['quantity'],
+            'tax_name'       => 'GST (18%)',
+            'tax_percentage' => 18
+        ];
 
-            // Attach GST tax if configured
-            if (defined('ZOHO_GST_TAX_ID') && ZOHO_GST_TAX_ID) {
-                $lineItem['tax_id'] = ZOHO_GST_TAX_ID;
-            }
-
-            $invoiceData = [
-                'customer_id'      => $customerId,
-                'reference_number' => $bookingData['booking_reference'],
-                'date'             => date('Y-m-d'),
-                'payment_terms'    => 0,
-                'notes'            => 'Thank you for booking with MEDAI!',
-                'line_items'       => [$lineItem],
-                'billing_address' => [
-                    'address' => substr($bookingData['billing_address'] ?? '', 0, 95),
-                    'city'    => $bookingData['city']            ?? '',
-                    'state'   => $bookingData['state']           ?? '',
-                    'zip'     => $bookingData['zip']             ?? '',
-                    'country' => 'India'
-                ]
-            ];
-
-            $curl = curl_init();
-            curl_setopt_array($curl, [
-                CURLOPT_URL            => ZOHO_BASE_URL . "/invoices?organization_id=" . ZOHO_ORGANIZATION_ID,
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_POST           => true,
-                CURLOPT_POSTFIELDS     => json_encode($invoiceData),
-                CURLOPT_HTTPHEADER     => [
-                    "Authorization: Zoho-oauthtoken $token",
-                    "Content-Type: application/json"
-                ]
-            ]);
-
-            $response = json_decode(curl_exec($curl), true);
-            curl_close($curl);
-
-            if (isset($response['code']) && $response['code'] === 0 && isset($response['invoice']['invoice_id'])) {
-                $invoiceId = $response['invoice']['invoice_id'];
-
-                // Send invoice email via Zoho automatically
-                self::sendInvoiceEmail($invoiceId, $token);
-
-                return $invoiceId;
-            }
-
-            throw new Exception("Zoho Invoice Error: " . ($response['message'] ?? json_encode($response)));
-
-        } catch (Exception $e) {
-            error_log("Zoho Integration Error: " . $e->getMessage());
-            return null;
+        // Attach GST tax if configured
+        if (defined('ZOHO_GST_TAX_ID') && ZOHO_GST_TAX_ID) {
+            $lineItem['tax_id'] = ZOHO_GST_TAX_ID;
         }
+
+        $invoiceData = [
+            'customer_id'      => $customerId,
+            'reference_number' => $bookingData['booking_reference'],
+            'date'             => date('Y-m-d'),
+            'payment_terms'    => 0,
+            'notes'            => 'Thank you for booking with MEDAI!',
+            'line_items'       => [$lineItem]
+        ];
+
+        error_log("Zoho: Posting invoice data...");
+        $curl = curl_init();
+        curl_setopt_array($curl, [
+            CURLOPT_URL            => ZOHO_BASE_URL . "/invoices?organization_id=" . ZOHO_ORGANIZATION_ID,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => json_encode($invoiceData),
+            CURLOPT_HTTPHEADER     => [
+                "Authorization: Zoho-oauthtoken $token",
+                "Content-Type: application/json"
+            ]
+        ]);
+
+        $rawResponse = curl_exec($curl);
+        if (curl_errno($curl)) {
+            error_log("Zoho Invoice Posting CURL Error: " . curl_error($curl));
+            throw new Exception("CURL Error: " . curl_error($curl));
+        }
+        $response = json_decode($rawResponse, true);
+        curl_close($curl);
+
+        if (isset($response['code']) && $response['code'] === 0 && isset($response['invoice']['invoice_id'])) {
+            $invoice = $response['invoice'];
+            error_log("Zoho: Invoice created successfully: " . $invoice['invoice_id']);
+            return [
+                'invoice_id'  => $invoice['invoice_id'],
+                'invoice_url' => $invoice['invoice_url'] ?? null,
+                'invoice_number' => $invoice['invoice_number'] ?? null
+            ];
+        }
+
+        error_log("Zoho: Invoice creation failed - " . $rawResponse);
+        throw new Exception("Zoho Invoice Error: " . ($response['message'] ?? $rawResponse));
     }
 
     // ── SEND INVOICE EMAIL VIA ZOHO ─────────────────────────────────────────────

@@ -6,19 +6,19 @@ export default function Venues({ onBookClick, tier = 2, isMobile = false }) {
     const venues = [
         {
             city: "CHENNAI",
-            capacity: "120 Seater",
+            capacity: "100-120 Seater",
             description: "An intimate black box ideal for theatre, classical dance, contemporary acts, indie music and stand-up.",
             image: "https://images.unsplash.com/photo-1513106580091-1d82408b8cd6?q=80&w=2070"
         },
         {
             city: "BENGALURU",
-            capacity: "170 Seater",
+            capacity: "130-200 Seater",
             description: "A flexible performance venue suited for mid-scale productions, festivals, comedy and concerts.",
             image: "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=2070"
         },
         {
             city: "COIMBATORE",
-            capacity: "220 Seater",
+            capacity: "170-200 Seater",
             description: "A spacious and modern venue perfect for large dance shows, theatre, cultural programs and live music.",
             image: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=2070"
         }

@@ -20,27 +20,10 @@ if (!$invoiceId) {
 require_once '../config/ZohoInvoiceService.php';
 
 try {
-    $token = (new ReflectionClass('ZohoInvoiceService'))
-               ->getMethod('getAccessToken');
-    $token->setAccessible(true);
-    $accessToken = $token->invoke(null);
+    $accessToken = ZohoInvoiceService::getAccessToken();
 } catch (Exception $e) {
-    // Fallback – get token via a simpler curl call
-    $ch = curl_init();
-    curl_setopt_array($ch, [
-        CURLOPT_URL            => ZOHO_AUTH_URL,
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_POST           => true,
-        CURLOPT_POSTFIELDS     => http_build_query([
-            'refresh_token' => ZOHO_REFRESH_TOKEN,
-            'client_id'     => ZOHO_CLIENT_ID,
-            'client_secret' => ZOHO_CLIENT_SECRET,
-            'grant_type'    => 'refresh_token'
-        ])
-    ]);
-    $res = json_decode(curl_exec($ch), true);
-    curl_close($ch);
-    $accessToken = $res['access_token'] ?? null;
+    error_log("Download Auth Error: " . $e->getMessage());
+    $accessToken = null;
 }
 
 if (!$accessToken) {

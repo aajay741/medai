@@ -12,8 +12,11 @@ const scrollToSection = (id) => {
 export default function Header({ onBookClick, tier = 2, isMobile = false }) {
     const [isMenuOpen, setIsMenuOpen] = useState(false)
     const location = useLocation()
+    const isAdmin = location.pathname.startsWith('/admin')
     const isHome = location.pathname === '/'
     const isLowPerformance = tier < 2 || isMobile
+
+    if (isAdmin) return null;
 
     const toggleMenu = () => setIsMenuOpen(!isMenuOpen)
 
