@@ -1,0 +1,2 @@
+URL: https://www.zohoapis.in/invoice/v3/organizations CODE: 200
+URL: https://www.zohoapis.com/invoice/v3/organizations CODE: 401

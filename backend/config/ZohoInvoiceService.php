@@ -27,7 +27,9 @@ class ZohoInvoiceService {
                 'client_id'     => ZOHO_CLIENT_ID,
                 'client_secret' => ZOHO_CLIENT_SECRET,
                 'grant_type'    => 'refresh_token'
-            ])
+            ]),
+            CURLOPT_IPRESOLVE      => CURL_IPRESOLVE_V4,
+            CURLOPT_CONNECTTIMEOUT => 5
         ]);
 
         $rawResponse = curl_exec($curl);
@@ -56,18 +58,29 @@ class ZohoInvoiceService {
 
         error_log("Zoho: Searching/Creating customer for $email");
 
-        // 1. Check our database first (SPEED OPTIMIZATION)
+        // 1. Check dedicated cache table (ULTRA FAST)
         try {
             $db = Database::getInstance()->getConnection();
+            $stmt = $db->prepare("SELECT zoho_customer_id FROM zoho_customers WHERE email = ? LIMIT 1");
+            $stmt->execute([$email]);
+            $cachedId = $stmt->fetchColumn();
+            if ($cachedId) {
+                error_log("Item found in dedicated cache: $cachedId");
+                return $cachedId;
+            }
+
+            // Fallback to bookings table for legacy
             $stmt = $db->prepare("SELECT zoho_customer_id FROM bookings WHERE email = ? AND zoho_customer_id IS NOT NULL ORDER BY id DESC LIMIT 1");
             $stmt->execute([$email]);
-            $cachedCustomerId = $stmt->fetchColumn();
-            if ($cachedCustomerId) {
-                error_log("Zoho: Found cached customer ID in DB: $cachedCustomerId");
-                return $cachedCustomerId;
+            $cachedId = $stmt->fetchColumn();
+            if ($cachedId) {
+                // Sync to dedicated table
+                $db->prepare("INSERT IGNORE INTO zoho_customers (email, zoho_customer_id, name, phone) VALUES (?, ?, ?, ?)")
+                   ->execute([$email, $cachedId, $name, $phone]);
+                return $cachedId;
             }
         } catch (Exception $e) {
-            error_log("Zoho: DB Cache check failed: " . $e->getMessage());
+            error_log("Zoho Cache check failed: " . $e->getMessage());
         }
 
         // 2. Search by email in Zoho
@@ -75,6 +88,8 @@ class ZohoInvoiceService {
         curl_setopt_array($curl, [
             CURLOPT_URL            => ZOHO_BASE_URL . "/contacts?email=" . urlencode($email) . "&organization_id=" . ZOHO_ORGANIZATION_ID,
             CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_IPRESOLVE      => CURL_IPRESOLVE_V4,
+            CURLOPT_CONNECTTIMEOUT => 5,
             CURLOPT_HTTPHEADER     => ["Authorization: Zoho-oauthtoken $token"]
         ]);
         $response = json_decode(curl_exec($curl), true);
@@ -82,7 +97,25 @@ class ZohoInvoiceService {
 
         if (!empty($response['contacts'])) {
             $contactId = $response['contacts'][0]['contact_id'];
-            error_log("Zoho: Found existing contact in Zoho: $contactId");
+            error_log("Zoho: Found existing contact by email: $contactId");
+            return $contactId;
+        }
+
+        // 2b. Secondary Search: By Contact Name (Zoho requires unique names in many orgs)
+        $curl = curl_init();
+        curl_setopt_array($curl, [
+            CURLOPT_URL            => ZOHO_BASE_URL . "/contacts?contact_name=" . urlencode($name) . "&organization_id=" . ZOHO_ORGANIZATION_ID,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_IPRESOLVE      => CURL_IPRESOLVE_V4,
+            CURLOPT_CONNECTTIMEOUT => 5,
+            CURLOPT_HTTPHEADER     => ["Authorization: Zoho-oauthtoken $token"]
+        ]);
+        $response = json_decode(curl_exec($curl), true);
+        curl_close($curl);
+
+        if (!empty($response['contacts'])) {
+            $contactId = $response['contacts'][0]['contact_id'];
+            error_log("Zoho: Found existing contact by name: $contactId");
             return $contactId;
         }
 
@@ -119,6 +152,8 @@ class ZohoInvoiceService {
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_POST           => true,
             CURLOPT_POSTFIELDS     => json_encode($contactData),
+            CURLOPT_IPRESOLVE      => CURL_IPRESOLVE_V4,
+            CURLOPT_CONNECTTIMEOUT => 5,
             CURLOPT_HTTPHEADER     => [
                 "Authorization: Zoho-oauthtoken $token",
                 "Content-Type: application/json"
@@ -129,8 +164,33 @@ class ZohoInvoiceService {
         curl_close($curl);
 
         if (isset($response['contact']['contact_id'])) {
-            error_log("Zoho: Created new customer ID: " . $response['contact']['contact_id']);
-            return $response['contact']['contact_id'];
+            $cid = $response['contact']['contact_id'];
+            error_log("Zoho: Created new customer ID: " . $cid);
+            
+            // Persistent cache
+            try {
+                $db->prepare("INSERT IGNORE INTO zoho_customers (email, zoho_customer_id, name, phone) VALUES (?, ?, ?, ?)")
+                   ->execute([$email, $cid, $name, $phone]);
+            } catch(Exception $e) {}
+
+            return $cid;
+        }
+
+        // 3b. Handle "Contact Name already exists" error by re-searching one last time
+        if (isset($response['message']) && strpos($response['message'], 'already exists') !== false) {
+             error_log("Zoho: Creation failed because name exists. Retrying search...");
+             $curl = curl_init();
+             curl_setopt_array($curl, [
+                 CURLOPT_URL            => ZOHO_BASE_URL . "/contacts?contact_name=" . urlencode($name) . "&organization_id=" . ZOHO_ORGANIZATION_ID,
+                 CURLOPT_RETURNTRANSFER => true,
+                 CURLOPT_IPRESOLVE      => CURL_IPRESOLVE_V4,
+                 CURLOPT_HTTPHEADER     => ["Authorization: Zoho-oauthtoken $token"]
+             ]);
+             $response = json_decode(curl_exec($curl), true);
+             curl_close($curl);
+             if (!empty($response['contacts'])) {
+                 return $response['contacts'][0]['contact_id'];
+             }
         }
 
         error_log("Zoho: Failed to create customer - " . json_encode($response));
@@ -143,11 +203,18 @@ class ZohoInvoiceService {
         $token      = self::getAccessToken();
         $customerId = self::getOrCreateCustomer($bookingData);
 
+        $description = "Booking: " . $bookingData['event_date'] . " at " . $bookingData['event_time']
+                     . " | " . $bookingData['ticket_type'] . " × " . $bookingData['quantity'];
+        
+        if (!empty($bookingData['special_requests'])) {
+            $description .= " | " . $bookingData['special_requests'];
+        }
+        
+        $description .= " | Ref: " . $bookingData['booking_reference'];
+
         $lineItem = [
             'name'           => $bookingData['show_title'] . " — " . $bookingData['location'],
-            'description'    => "Booking: " . $bookingData['event_date'] . " at " . $bookingData['event_time']
-                              . " | " . $bookingData['ticket_type'] . " × " . $bookingData['quantity']
-                              . " | Ref: " . $bookingData['booking_reference'],
+            'description'    => $description,
             'rate'           => $bookingData['price_per_unit'],
             'quantity'       => $bookingData['quantity'],
             'tax_name'       => 'GST (18%)',
@@ -168,13 +235,15 @@ class ZohoInvoiceService {
             'line_items'       => [$lineItem]
         ];
 
-        error_log("Zoho: Posting invoice data...");
         $curl = curl_init();
         curl_setopt_array($curl, [
             CURLOPT_URL            => ZOHO_BASE_URL . "/invoices?organization_id=" . ZOHO_ORGANIZATION_ID,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_POST           => true,
             CURLOPT_POSTFIELDS     => json_encode($invoiceData),
+            CURLOPT_IPRESOLVE      => CURL_IPRESOLVE_V4,
+            CURLOPT_CONNECTTIMEOUT => 5,
+            CURLOPT_TIMEOUT        => 10,
             CURLOPT_HTTPHEADER     => [
                 "Authorization: Zoho-oauthtoken $token",
                 "Content-Type: application/json"

@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS bookings (
     email VARCHAR(255) NOT NULL,
     phone VARCHAR(20) NOT NULL,
     location VARCHAR(100) NOT NULL,
+    show_title VARCHAR(255) DEFAULT NULL,
     event_date DATE NOT NULL,
     event_time VARCHAR(50) NOT NULL,
     ticket_type VARCHAR(50) NOT NULL,

@@ -49,9 +49,11 @@ $data = json_decode($response, true);
 
 if ($httpStatus !== 200 || empty($data['id'])) {
     $errMsg = $data['error']['description'] ?? 'Failed to create Razorpay order';
+    error_log("Razorpay Order Creation Failed ($httpStatus): " . ($response ?: 'No response'));
     sendResponse(false, null, $errMsg, 500);
 }
 
+error_log("Razorpay Order Created: " . ($data['id'] ?? 'N/A'));
 sendResponse(true, [
     'order_id'  => $data['id'],
     'amount'    => $data['amount'],

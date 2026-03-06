@@ -3,7 +3,7 @@
  * get_invoice_status.php
  * Checks if a Zoho invoice exists for a booking ref.
  * If not, attempts to generate it on-the-fly.
- * Frontend polls this every 3 s after payment confirmation.
+ * Optimized for speed and concurrency.
  */
 
 ob_start();
@@ -19,6 +19,8 @@ register_shutdown_function(function () {
 
 require_once '../config/config.php';
 setCorsHeaders();
+ignore_user_abort(true);
+set_time_limit(60);
 
 $ref = trim($_GET['ref'] ?? '');
 if (!$ref) {
@@ -29,61 +31,49 @@ if (!$ref) {
 try {
     $db = Database::getInstance()->getConnection();
 
-    // 1. Check if invoice ID already stored in database (FAST)
-    $stmt = $db->prepare("SELECT id, name, email, phone, location, event_date, event_time,
+    // 1. FAST CHECK: Is it already done?
+    $stmt = $db->prepare("SELECT id, name, email, phone, location, show_title, event_date, event_time,
                            ticket_type, quantity, total_amount, special_requests,
                            company_name, gst_number, billing_address, city, state, zip_code,
-                           zoho_invoice_id, zoho_customer_id
-                           FROM bookings WHERE booking_reference = ? LIMIT 1");
+                           zoho_invoice_id FROM bookings WHERE booking_reference = ? LIMIT 1");
     $stmt->execute([$ref]);
-    $booking = $stmt->fetch();
+    $booking = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$booking) {
         ob_end_clean();
         sendResponse(false, null, 'Booking not found', 404);
     }
 
-    $zohoInvoiceId = $booking['zoho_invoice_id'];
-
-    // If not in the new column, check special_requests (backwards compatibility)
-    if (!$zohoInvoiceId && preg_match('/Zoho Invoice ID:\s*(\S+)/i', $booking['special_requests'] ?? '', $m)) {
-        $zohoInvoiceId = trim($m[1]);
-        // Fast-fix: Migrating it to the new column now
-        $db->prepare("UPDATE bookings SET zoho_invoice_id = ? WHERE id = ?")->execute([$zohoInvoiceId, $booking['id']]);
-    }
-
-    // 2. If already have it, return immediately
-    if ($zohoInvoiceId) {
+    if ($booking['zoho_invoice_id']) {
         ob_end_clean();
         sendResponse(true, [
             'ready'               => true,
-            'zohoInvoiceId'       => $zohoInvoiceId,
-            'invoiceDownloadPath' => '/backend/api/invoice_download.php?invoice_id=' . urlencode($zohoInvoiceId)
+            'zohoInvoiceId'       => $booking['zoho_invoice_id'],
+            'invoiceDownloadPath' => '/backend/api/invoice_download.php?invoice_id=' . urlencode($booking['zoho_invoice_id'])
         ], 'Invoice ready');
     }
 
-    // 3. Not yet generated — try to create it now
+    // 2. GENERATION START
     require_once '../config/ZohoInvoiceService.php';
 
-    // Calculate unit rate from DB (more accurate than hardcoding)
-    $qty = (int)$booking['quantity'];
-    $total = (int)$booking['total_amount'];
-    // total = (unitRate * qty) * 1.18
-    // unitRate = (total / 1.18) / qty
-    $unitRate = ($qty > 0) ? floor(($total / 1.18) / $qty) : 799;
+    $qty = (float)$booking['quantity'];
+    $total = (float)$booking['total_amount'];
+    // total = (unitRate * qty) * 1.18 => unitRate = total / 1.18 / qty
+    $unitRate = ($qty > 0) ? round(($total / 1.18) / $qty, 4) : 0;
 
     $zohoData = ZohoInvoiceService::createInvoice([
         'name'              => $booking['name'],
         'email'             => $booking['email'],
         'phone'             => $booking['phone'],
         'booking_reference' => $ref,
-        'show_title'        => $ticketType === 'Space Rental' ? 'Space Booking' : 'MEDAI Performance',
+        'show_title'        => $booking['show_title'] ?: ($booking['ticket_type'] === 'Space Rental' ? 'Space Booking' : 'MEDAI Performance'),
         'location'          => $booking['location'],
         'event_date'        => $booking['event_date'],
         'event_time'        => $booking['event_time'],
-        'ticket_type'       => $ticketType,
+        'ticket_type'       => $booking['ticket_type'],
         'quantity'          => (int)$booking['quantity'],
         'price_per_unit'    => $unitRate,
+        'special_requests'  => $booking['special_requests'] ?? '',
         'company_name'      => $booking['company_name']    ?? '',
         'gst_number'        => $booking['gst_number']      ?? '',
         'billing_address'   => $booking['billing_address'] ?? '',
@@ -97,8 +87,7 @@ try {
         $zohoCustomerId = $zohoData['customer_id'] ?? null;
 
         // Persist into DB specialized columns
-        $sql = "UPDATE bookings SET zoho_invoice_id = ?, zoho_customer_id = ? WHERE booking_reference = ?";
-        $upd = $db->prepare($sql);
+        $upd = $db->prepare("UPDATE bookings SET zoho_invoice_id = ?, zoho_customer_id = ? WHERE booking_reference = ?");
         $upd->execute([$zohoInvoiceId, $zohoCustomerId, $ref]);
 
         ob_end_clean();
@@ -106,17 +95,15 @@ try {
             'ready'               => true,
             'zohoInvoiceId'       => $zohoInvoiceId,
             'invoiceDownloadPath' => '/backend/api/invoice_download.php?invoice_id=' . urlencode($zohoInvoiceId)
-        ], 'Invoice ready');
+        ], 'Invoice created');
     }
 
-    // Zoho not ready yet (shouldn't normally reach here)
     ob_end_clean();
-    sendResponse(true, ['ready' => false], 'Invoice still generating');
+    sendResponse(true, ['ready' => false], 'Still generating');
 
 } catch (Exception $e) {
     error_log('get_invoice_status.php error: ' . $e->getMessage());
     ob_end_clean();
-    // Return not-ready instead of error so the frontend keeps polling
-    sendResponse(true, ['ready' => false, 'error' => $e->getMessage()], 'Still generating');
+    sendResponse(true, ['ready' => false, 'error' => $e->getMessage()], 'Retrying...');
 }
 ?>

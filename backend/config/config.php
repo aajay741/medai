@@ -1,9 +1,9 @@
 <?php
 // Database Configuration
-define('DB_HOST', '127.0.0.1');
-define('DB_NAME', 'test');
-define('DB_USER', 'root');
-define('DB_PASS', '');
+define('DB_HOST', 'localhost');
+define('DB_NAME', 'u891495087_medai_db1');
+define('DB_USER', 'u891495087_medai_db1');
+define('DB_PASS', 'Medai@12345');
 define('DB_CHARSET', 'utf8mb4');
 
 
@@ -42,6 +42,7 @@ define('SESSION_LIFETIME', 3600); // 1 hour in seconds
 define('ALLOWED_ORIGINS', [
     'http://localhost:5173',
     'http://localhost:3000',
+    'http://localhost:3001',
     'http://localhost:5174',
     'https://medaithestage.com',
     'http://medaithestage.com',
@@ -54,9 +55,9 @@ define('ALLOWED_ORIGINS', [
 // Timezone
 date_default_timezone_set('Asia/Kolkata');
 
-// Error Reporting (disable in production)
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+// Error Reporting (PRODUCTION: errors off)
+error_reporting(0);
+ini_set('display_errors', 0);
 
 // Database Connection Class
 class Database {
@@ -74,10 +75,18 @@ class Database {
             
             $this->connection = new PDO($dsn, DB_USER, DB_PASS, $options);
         } catch (PDOException $e) {
-            die(json_encode([
-                'success' => false,
-                'message' => 'Database connection failed: ' . $e->getMessage()
-            ]));
+            // If the DB doesn't exist, try connecting to host and creating it
+            try {
+                $tempPdo = new PDO("mysql:host=" . DB_HOST, DB_USER, DB_PASS);
+                $tempPdo->exec("CREATE DATABASE IF NOT EXISTS `" . DB_NAME . "`");
+                // Retry connection
+                $this->connection = new PDO($dsn, DB_USER, DB_PASS, $options);
+            } catch (Exception $inner) {
+                die(json_encode([
+                    'success' => false,
+                    'message' => 'Database connection failed: ' . $inner->getMessage()
+                ]));
+            }
         }
     }
     

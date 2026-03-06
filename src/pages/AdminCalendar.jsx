@@ -19,6 +19,8 @@ export default function AdminCalendar() {
     const [showBulkModal, setShowBulkModal] = useState(false)
     const [bulkForm, setBulkForm] = useState({ start: '', end: '', action: 'block', reason: '' })
     const [updating, setUpdating] = useState(false)
+    const [blockModal, setBlockModal] = useState(null) // { slotId, slotCode, slotRange, date }
+    const [blockReason, setBlockReason] = useState('')
 
     const navigate = useNavigate()
 
@@ -36,7 +38,15 @@ export default function AdminCalendar() {
         finally { setLoading(false) }
     }
 
-    const handleToggleBlock = async (slotId, date, currentIsBlocked) => {
+    const handleToggleBlock = async (slotId, date, currentIsBlocked, reason = '') => {
+        if (!currentIsBlocked && !reason) {
+            // Find slot details to show in modal
+            const slot = data.definitions.find(s => s.id === slotId)
+            setBlockModal({ slotId, slotCode: slot?.slot_code, slotRange: slot?.slot_range, date })
+            setBlockReason('')
+            return
+        }
+
         setUpdating(true)
         try {
             const res = await fetch('/backend/api/admin_calendar_data.php', {
@@ -46,11 +56,16 @@ export default function AdminCalendar() {
                     slot_id: slotId,
                     date: date,
                     is_blocked: !currentIsBlocked,
-                    reason: 'Admin Manual Block'
+                    reason: reason || (currentIsBlocked ? '' : 'Admin Manual Block')
                 })
             })
             const json = await res.json()
-            if (json.success) fetchCalendarData()
+            if (json.success) {
+                fetchCalendarData()
+                setBlockModal(null)
+            } else {
+                alert(json.message)
+            }
         } catch (err) { console.error(err) }
         finally { setUpdating(false) }
     }
@@ -222,14 +237,27 @@ export default function AdminCalendar() {
                                                         <p className="text-sm font-bold">{booking.name}</p>
                                                         <p className="text-[10px] text-white/40 font-mono italic">REF: {booking.booking_reference}</p>
                                                     </div>
+                                                ) : isBlocked ? (
+                                                    <div className="flex justify-between items-start mt-2">
+                                                        <div className="space-y-1">
+                                                            <p className="text-[11px] font-black text-red-400 uppercase tracking-tighter">Admin Blocked</p>
+                                                            <p className="text-[10px] text-white/30 italic max-w-[150px] line-clamp-2">{block.block_reason || 'Manual Block'}</p>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => handleToggleBlock(slot.id, selectedDate, true)}
+                                                            className="px-3 py-1.5 text-[9px] font-black uppercase tracking-widest bg-emerald-400 text-black rounded-lg hover:bg-white transition-all"
+                                                        >
+                                                            Unlock
+                                                        </button>
+                                                    </div>
                                                 ) : (
                                                     <div className="flex justify-between items-center mt-3">
                                                         <span className="text-xs font-bold text-white/40">₹{slot.base_price}</span>
                                                         <button
                                                             onClick={() => handleToggleBlock(slot.id, selectedDate, isBlocked)}
-                                                            className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all ${isBlocked ? 'bg-emerald-400 text-black hover:bg-white' : 'bg-red-500/20 text-red-500 border border-red-500/30 hover:bg-red-500 hover:text-white'}`}
+                                                            className="px-3 py-1.5 text-[9px] font-black uppercase tracking-widest bg-red-500/20 text-red-500 border border-red-500/30 hover:bg-red-500 hover:text-white rounded-lg transition-all"
                                                         >
-                                                            {isBlocked ? 'Unlock Slot' : 'Block Slot'}
+                                                            Block Slot
                                                         </button>
                                                     </div>
                                                 )}
@@ -298,6 +326,50 @@ export default function AdminCalendar() {
                                     </button>
                                 </div>
                             </form>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+            {/* Single Slot Block Reason Modal */}
+            <AnimatePresence>
+                {blockModal && (
+                    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setBlockModal(null)} />
+                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-sm bg-[#0d091a] border border-white/10 rounded-3xl p-8">
+                            <h2 className="text-xl font-black mb-2 tracking-tighter uppercase line-clamp-1">Block Slot</h2>
+                            <p className="text-[10px] font-bold text-[#A78BFA] uppercase tracking-widest mb-6">
+                                {blockModal.slotCode} • {blockModal.slotRange} • {new Date(blockModal.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                            </p>
+
+                            <div className="space-y-4">
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-black tracking-widest uppercase text-white/40 ml-1">Reason for blocking</label>
+                                    <input
+                                        type="text"
+                                        autoFocus
+                                        value={blockReason}
+                                        onChange={e => setBlockReason(e.target.value)}
+                                        onKeyDown={e => e.key === 'Enter' && handleToggleBlock(blockModal.slotId, blockModal.date, false, blockReason)}
+                                        placeholder="Private Event, Maintenance, etc."
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs outline-none focus:border-[#A78BFA] transition-all"
+                                    />
+                                </div>
+                                <div className="flex gap-3 pt-4">
+                                    <button
+                                        onClick={() => setBlockModal(null)}
+                                        className="flex-1 py-3.5 text-[10px] font-black tracking-[0.2em] uppercase border border-white/10 rounded-xl text-white/40 hover:bg-white/5 hover:text-white transition-all"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={() => handleToggleBlock(blockModal.slotId, blockModal.date, false, blockReason)}
+                                        disabled={updating}
+                                        className="flex-[1.5] py-3.5 bg-[#A78BFA] text-black text-[10px] font-black tracking-[0.2em] uppercase rounded-xl hover:scale-105 transition-all shadow-xl disabled:opacity-50"
+                                    >
+                                        {updating ? 'Processing...' : 'Block Slot'}
+                                    </button>
+                                </div>
+                            </div>
                         </motion.div>
                     </div>
                 )}

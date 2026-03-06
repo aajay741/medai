@@ -57,6 +57,9 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
     const [bookingResponse, setBookingResponse] = useState(null)
     const [invoiceStatus, setInvoiceStatus] = useState({ ready: false, invoiceDownloadPath: null, polling: false })
     const invoicePollRef = useRef(null)
+    const slotsRef = useRef(null)
+    const modalRef = useRef(null)
+    const summaryRef = useRef(null)
 
     // Calendar State
     const [currentMonth, setCurrentMonth] = useState(new Date().getMonth())
@@ -76,31 +79,43 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
 
     // ── Poll for invoice after payment confirmed ──────────────────────────────
     useEffect(() => {
-        if (bookingResponse?.bookingReference && !invoiceStatus.ready) {
+        if (bookingResponse?.bookingReference && !invoiceStatus.ready && !invoiceStatus.polling) {
             setInvoiceStatus(s => ({ ...s, polling: true }))
             const ref = bookingResponse.bookingReference
 
-            const poll = async () => {
+            // Immediate & High-frequency polling (every 500ms)
+            invoicePollRef.current = setInterval(async () => {
                 try {
-                    const res = await fetch(`/backend/api/get_invoice_status.php?ref=${encodeURIComponent(ref)}`)
-                    const data = await res.json()
+                    const res = await fetch(`/backend/api/get_invoice_status.php?ref=${encodeURIComponent(ref)}`);
+                    const data = await res.json();
+
                     if (data.success && data.data?.ready) {
-                        setInvoiceStatus({ ready: true, invoiceDownloadPath: data.data.invoiceDownloadPath, polling: false })
-                        clearInterval(invoicePollRef.current)
+                        setInvoiceStatus({
+                            ready: true,
+                            invoiceDownloadPath: data.data.invoiceDownloadPath,
+                            polling: false
+                        });
+                        clearInterval(invoicePollRef.current);
+
+                        // Auto-download once ready
+                        const link = document.createElement('a');
+                        link.href = data.data.invoiceDownloadPath;
+                        link.setAttribute('download', `MEDAI-Invoice-${ref}.pdf`);
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
                     }
                 } catch (e) {
-                    // keep polling silently
+                    console.warn('Invoice polling error:', e);
                 }
-            }
+            }, 500);
 
-            poll() // first attempt immediately
-            invoicePollRef.current = setInterval(poll, 1500)
-            return () => clearInterval(invoicePollRef.current)
+            return () => clearInterval(invoicePollRef.current);
         }
-    }, [bookingResponse])
+    }, [bookingResponse, invoiceStatus.ready]);
 
     useEffect(() => {
-        if (step === 6) {
+        if (step === 5) {
             const duration = 3 * 1000;
             const animationEnd = Date.now() + duration;
             const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
@@ -301,6 +316,25 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                 return
             }
             setFormErrors({})
+
+            // ── SHADOW PRE-REGISTRATION (EARLY TRIGGER) ─────────────────────
+            // We start this process as soon as they click "Review Pass"
+            // This saves 2-3 seconds during the final payment confirmation step.
+            fetch('/backend/api/pre_register_customer.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: bookingData.name,
+                    email: bookingData.email,
+                    phone: bookingData.phone,
+                    companyName: bookingData.company_name,
+                    gstNumber: bookingData.gst_number,
+                    billingAddress: bookingData.billing_address,
+                    city: bookingData.city,
+                    state: bookingData.state,
+                    zip: bookingData.zip
+                })
+            }).catch(e => console.warn('Early Pre-reg warning:', e))
         }
         setDirection(1)
         setStep(s => Math.min(s + 1, 5))
@@ -381,11 +415,9 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                 })
                             })
                             const verifyData = await verifyRes.json()
+                            console.log('Payment Verification Response:', verifyData)
                             if (verifyData.success) {
-                                // 1. Immediate UI update with booking and Zoho data
-                                setBookingResponse(verifyData.data)
-
-                                // Update invoice status immediately if available
+                                // 1. Update invoice status FIRST to prevent race condition in useEffect
                                 if (verifyData.data?.invoiceReady) {
                                     setInvoiceStatus({
                                         ready: true,
@@ -393,6 +425,9 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                         polling: false
                                     })
                                 }
+
+                                // 2. Then set booking response
+                                setBookingResponse(verifyData.data)
 
                                 setDirection(1)
                                 setStep(5)
@@ -506,8 +541,9 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[200] bg-[#030303]/90 flex items-center justify-center p-2 md:p-8 backdrop-blur-3xl overflow-hidden"
+            className="fixed inset-0 z-[200] bg-[#030303]/98 flex items-center justify-center p-2 md:p-8 backdrop-blur-3xl overflow-hidden"
             data-lenis-prevent
+            style={{ position: 'fixed' }} // Force non-static position for Framer Motion children
         >
             {/* Cinematic 3D Depth Elements */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -534,7 +570,8 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                 initial="hidden"
                 animate="visible"
                 exit="exit"
-                className="relative w-full max-w-5xl max-h-[90vh] glass border border-white/5 rounded-[3rem] p-6 md:p-10 shadow-[0_80px_160px_-40px_rgba(0,0,0,0.9)] z-10 overflow-y-auto"
+                ref={modalRef}
+                className="relative w-full max-w-5xl max-h-[90vh] bg-[#0a0a0a] border border-white/10 rounded-[3rem] p-6 md:p-10 shadow-[0_80px_160px_-40px_rgba(0,0,0,1)] z-10 overflow-y-auto"
             >
                 {/* Header Section */}
                 <div className="flex justify-between items-start mb-8 relative">
@@ -554,7 +591,7 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
 
                     <button
                         onClick={onClose}
-                        className="group p-3 rounded-full border border-white/5 bg-white/5 hover:bg-[#A78BFA] hover:text-black transition-all duration-700"
+                        className="group p-3 rounded-full border border-white/10 bg-white/5 hover:bg-[#A78BFA] hover:text-black transition-all duration-700"
                     >
                         <svg className="w-3.5 h-3.5 group-hover:rotate-90 transition-transform duration-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
@@ -584,7 +621,7 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                                 setBookingData({ ...bookingData, location: loc.name, show: 'Space Booking' })
                                                 setStep(2)
                                             }}
-                                            className={`p-8 rounded-[2.5rem] border text-left transition-all duration-700 relative overflow-hidden group ${bookingData.location === loc.name ? 'bg-[#A78BFA] border-[#A78BFA] text-black shadow-[0_20px_40px_rgba(167,139,250,0.2)]' : 'bg-white/5 border-white/5 hover:border-[#A78BFA]/30'}`}
+                                            className={`p-8 rounded-[2.5rem] border text-left transition-all duration-700 relative overflow-hidden group ${bookingData.location === loc.name ? 'bg-[#A78BFA] border-[#A78BFA] text-black shadow-[0_20px_40px_rgba(167,139,250,0.2)]' : 'bg-white/[0.03] border-white/10 hover:border-[#A78BFA]/30'}`}
                                         >
                                             <div className="relative z-10">
                                                 <div className={`text-[9px] font-black tracking-[0.4em] uppercase mb-4 ${bookingData.location === loc.name ? 'text-black/40' : 'text-[#A78BFA]'}`}>Venue Hub</div>
@@ -675,7 +712,15 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                                 <button
                                                     key={i}
                                                     disabled={isPast || dayStatus === 'full'}
-                                                    onClick={() => setBookingData(prev => ({ ...prev, date: `${d.num} ${d.month}`, date_full: d.full, times: [], slot_codes: [], durations: [], total: 0, subtotal: 0, gst: 0, tickets: 0 }))}
+                                                    onClick={() => {
+                                                        setBookingData(prev => ({ ...prev, date: `${d.num} ${d.month}`, date_full: d.full, times: [], slot_codes: [], durations: [], total: 0, subtotal: 0, gst: 0, tickets: 0 }))
+                                                        setTimeout(() => {
+                                                            if (slotsRef.current && modalRef.current) {
+                                                                const slotTop = slotsRef.current.offsetTop
+                                                                modalRef.current.scrollTo({ top: slotTop - 20, behavior: 'smooth' })
+                                                            }
+                                                        }, 100)
+                                                    }}
                                                     className={`p-1.5 md:p-2 rounded-2xl border transition-all duration-500 flex flex-col items-center justify-center gap-0.5 relative overflow-hidden group 
                                                         ${isSelected ? 'bg-[#A78BFA] border-[#A78BFA] text-black shadow-[0_8px_16px_rgba(167,139,250,0.3)]' :
                                                             dayStatus === 'partial' ? 'bg-orange-500/40 border-orange-500/60 text-white hover:bg-orange-500/50' :
@@ -709,154 +754,163 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                     </div>
 
                                     {/* Time Selection - Only if date is selected */}
-                                    <AnimatePresence mode="wait">
-                                        {bookingData.date && (
-                                            <motion.div
-                                                initial={{ opacity: 0, y: 20 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                exit={{ opacity: 0, y: -10 }}
-                                                transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-                                                className="grid grid-cols-1 md:grid-cols-2 gap-6"
-                                            >
-                                                {times.map((t, i) => {
-                                                    const isSelected = bookingData.times.includes(t)
-                                                    const slot = bookingData.show === 'Space Booking'
-                                                        ? dynamicSlots.find(s => s.slot_range === t)
-                                                        : null
+                                    <div ref={slotsRef}>
+                                        <AnimatePresence mode="wait">
+                                            {bookingData.date && (
+                                                <motion.div
+                                                    initial={{ opacity: 0, y: 20 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    exit={{ opacity: 0, y: -10 }}
+                                                    transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+                                                    className="grid grid-cols-1 md:grid-cols-2 gap-6"
+                                                >
+                                                    {times.map((t, i) => {
+                                                        const isSelected = bookingData.times.includes(t)
+                                                        const slot = bookingData.show === 'Space Booking'
+                                                            ? dynamicSlots.find(s => s.slot_range === t)
+                                                            : null
 
-                                                    const isLocked = slot && slot.is_available === false;
-                                                    const isPartialDate = availability[bookingData.date_full]?.status === 'partial';
+                                                        const isLocked = slot && slot.is_available === false;
+                                                        const isPartialDate = availability[bookingData.date_full]?.status === 'partial';
 
-                                                    return (
-                                                        <button
-                                                            key={i}
-                                                            disabled={isLocked}
-                                                            onClick={() => {
-                                                                if (isLocked) return;
-                                                                let newTimes = [...bookingData.times]
-                                                                let newCodes = [...bookingData.slot_codes]
-                                                                let newDurations = [...bookingData.durations]
+                                                        return (
+                                                            <button
+                                                                key={i}
+                                                                disabled={isLocked}
+                                                                onClick={() => {
+                                                                    if (isLocked) return;
+                                                                    let newTimes = [...bookingData.times]
+                                                                    let newCodes = [...bookingData.slot_codes]
+                                                                    let newDurations = [...bookingData.durations]
 
-                                                                if (isSelected) {
-                                                                    newTimes = newTimes.filter(item => item !== t)
-                                                                    if (slot) {
-                                                                        newCodes = newCodes.filter(item => item !== (slot.slot_code || slot.code))
-                                                                        newDurations = newDurations.filter(item => item !== slot.duration)
+                                                                    if (isSelected) {
+                                                                        newTimes = newTimes.filter(item => item !== t)
+                                                                        if (slot) {
+                                                                            newCodes = newCodes.filter(item => item !== (slot.slot_code || slot.code))
+                                                                            newDurations = newDurations.filter(item => item !== slot.duration)
+                                                                        }
+                                                                    } else {
+                                                                        newTimes.push(t)
+                                                                        if (slot) {
+                                                                            newCodes.push(slot.slot_code || slot.code)
+                                                                            newDurations.push(slot.duration)
+                                                                        }
                                                                     }
-                                                                } else {
-                                                                    newTimes.push(t)
-                                                                    if (slot) {
-                                                                        newCodes.push(slot.slot_code || slot.code)
-                                                                        newDurations.push(slot.duration)
-                                                                    }
-                                                                }
 
-                                                                const basePricePerSlot = slot ? Number(slot.base_price || slot.price) : 799
-                                                                const subtotal = basePricePerSlot * newTimes.length
-                                                                const gst = Math.round(subtotal * 0.18)
-                                                                const total = subtotal + gst
+                                                                    const basePricePerSlot = slot ? Number(slot.base_price || slot.price) : 799
+                                                                    const subtotal = basePricePerSlot * newTimes.length
+                                                                    const gst = Math.round(subtotal * 0.18)
+                                                                    const total = subtotal + gst
 
-                                                                setBookingData(prev => ({
-                                                                    ...prev,
-                                                                    times: newTimes,
-                                                                    slot_codes: newCodes,
-                                                                    durations: newDurations,
-                                                                    price_per_slot: basePricePerSlot,
-                                                                    subtotal: subtotal,
-                                                                    gst: gst,
-                                                                    total: total,
-                                                                    tickets: newTimes.length
-                                                                }))
-                                                            }}
-                                                            className={`p-6 rounded-[2rem] border text-left transition-all duration-700 relative overflow-hidden group 
+                                                                    setBookingData(prev => ({
+                                                                        ...prev,
+                                                                        times: newTimes,
+                                                                        slot_codes: newCodes,
+                                                                        durations: newDurations,
+                                                                        price_per_slot: basePricePerSlot,
+                                                                        subtotal: subtotal,
+                                                                        gst: gst,
+                                                                        total: total,
+                                                                        tickets: newTimes.length
+                                                                    }))
+
+                                                                    setTimeout(() => {
+                                                                        if (summaryRef.current && modalRef.current) {
+                                                                            const summaryTop = summaryRef.current.offsetTop
+                                                                            modalRef.current.scrollTo({ top: summaryTop - 20, behavior: 'smooth' })
+                                                                        }
+                                                                    }, 100)
+                                                                }}
+                                                                className={`p-6 rounded-[2rem] border text-left transition-all duration-700 relative overflow-hidden group 
                                                                 ${isSelected ? 'bg-[#A78BFA] border-[#A78BFA] text-black shadow-[0_15px_30px_rgba(167,139,250,0.2)]' :
-                                                                    isLocked ? 'bg-white/10 border-white/5 opacity-40 cursor-not-allowed grayscale' :
-                                                                        'bg-white/5 border-white/5 hover:border-[#A78BFA]/30'}
+                                                                        isLocked ? 'bg-white/10 border-white/5 opacity-40 cursor-not-allowed grayscale' :
+                                                                            'bg-white/5 border-white/5 hover:border-[#A78BFA]/30'}
                                                             `}
-                                                        >
-                                                            <div className="relative z-10 flex flex-col gap-1">
-                                                                {slot && (
-                                                                    <div className={`text-[9px] font-black tracking-[0.3em] uppercase ${isSelected ? 'text-black/40' : isLocked ? 'text-white/20' : 'text-[#A78BFA]'}`}>
-                                                                        Slot {slot.slot_code || slot.code} • {slot.duration}
+                                                            >
+                                                                <div className="relative z-10 flex flex-col gap-1">
+                                                                    {slot && (
+                                                                        <div className={`text-[9px] font-black tracking-[0.3em] uppercase ${isSelected ? 'text-black/40' : isLocked ? 'text-white/20' : 'text-[#A78BFA]'}`}>
+                                                                            Slot {slot.slot_code || slot.code} • {slot.duration}
+                                                                        </div>
+                                                                    )}
+                                                                    <div className={`text-xl font-black tracking-tighter uppercase leading-none ${isLocked ? 'text-white/30' : ''}`}>
+                                                                        {t}
+                                                                    </div>
+                                                                    {slot && (
+                                                                        <div className={`text-[10px] font-black italic mt-1 ${isSelected ? 'text-black/60' : isLocked ? 'text-white/20' : 'text-white/40'}`}>
+                                                                            {isLocked ? (slot.reason || 'Booked') : `Rate: ₹${Number(slot.base_price || slot.price).toLocaleString('en-IN')}`}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                                {!isLocked && (
+                                                                    <div className="absolute top-0 right-0 p-8 h-full flex items-center justify-center opacity-0 group-hover:opacity-10 group-hover:translate-x-0 translate-x-4 transition-all duration-700">
+                                                                        <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                                                                        </svg>
                                                                     </div>
                                                                 )}
-                                                                <div className={`text-xl font-black tracking-tighter uppercase leading-none ${isLocked ? 'text-white/30' : ''}`}>
-                                                                    {t}
-                                                                </div>
-                                                                {slot && (
-                                                                    <div className={`text-[10px] font-black italic mt-1 ${isSelected ? 'text-black/60' : isLocked ? 'text-white/20' : 'text-white/40'}`}>
-                                                                        {isLocked ? (slot.reason || 'Booked') : `Rate: ₹${Number(slot.base_price || slot.price).toLocaleString('en-IN')}`}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                            {!isLocked && (
-                                                                <div className="absolute top-0 right-0 p-8 h-full flex items-center justify-center opacity-0 group-hover:opacity-10 group-hover:translate-x-0 translate-x-4 transition-all duration-700">
-                                                                    <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                                                                    </svg>
-                                                                </div>
-                                                            )}
-                                                        </button>
-                                                    )
-                                                })}
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
-                                </div>
-
-                                {/* Step 02 Booking Summary */}
-                                {bookingData.times.length > 0 && (
-                                    <div className="mt-8 p-8 rounded-[2.5rem] bg-[#A78BFA]/5 border border-[#A78BFA]/20 space-y-6">
-                                        <div className="flex justify-between items-end border-b border-[#A78BFA]/10 pb-4">
-                                            <div className="space-y-1">
-                                                <div className="text-[9px] font-black tracking-[0.4em] text-[#A78BFA] uppercase">Selection Summary</div>
-                                                <div className="text-lg font-black text-white italic tracking-tighter uppercase">{bookingData.date}</div>
-                                            </div>
-                                            <div className="text-right">
-                                                <div className="text-[10px] font-black text-[#A78BFA] opacity-60">SELECTED SLOTS</div>
-                                                <div className="text-sm font-black text-white">{bookingData.times.length} Slots</div>
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-3">
-                                            {bookingData.times.map((t, idx) => (
-                                                <div key={idx} className="flex justify-between items-center text-xs">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-1.5 h-1.5 rounded-full bg-[#A78BFA]"></div>
-                                                        <span className="font-medium text-white/70 uppercase">Slot: {t}</span>
-                                                    </div>
-                                                    <span className="font-black text-white/50">₹{bookingData.price_per_slot}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-
-                                        <div className="pt-4 border-t border-[#A78BFA]/10 space-y-2">
-                                            <div className="flex justify-between items-center text-[10px] font-black tracking-widest text-white/40 uppercase">
-                                                <span>Subtotal</span>
-                                                <span>₹{bookingData.subtotal}</span>
-                                            </div>
-                                            <div className="flex justify-between items-center text-[10px] font-black tracking-widest text-white/40 uppercase">
-                                                <span>GST (18%)</span>
-                                                <span>₹{bookingData.gst}</span>
-                                            </div>
-                                            <div className="flex justify-between items-center pt-2">
-                                                <span className="text-[11px] font-black tracking-[0.3em] text-[#A78BFA] uppercase">Final Payable Amount</span>
-                                                <span className="text-2xl font-black text-white tracking-tighter">₹{bookingData.total}</span>
-                                            </div>
-                                        </div>
+                                                            </button>
+                                                        )
+                                                    })}
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
                                     </div>
-                                )}
 
-                                <div className="flex justify-between items-center pt-8 border-t border-white/5">
-                                    <button onClick={prevStep} className="text-white/40 hover:text-[#A78BFA] text-[10px] font-black tracking-[0.6em] uppercase transition-colors">BACK</button>
-                                    <button
-                                        disabled={!bookingData.date || bookingData.times.length === 0}
-                                        onClick={nextStep}
-                                        className="px-14 py-5 bg-[#A78BFA] text-black rounded-full text-[10px] font-extrabold tracking-[0.6em] uppercase hover:scale-105 transition-all disabled:opacity-10 shadow-[0_20px_40px_rgba(167,139,250,0.2)]"
-                                    >
-                                        CONTINUE
-                                    </button>
-                                </div>
+                                    {/* Step 02 Booking Summary */}
+                                    {bookingData.times.length > 0 && (
+                                        <div ref={summaryRef} className="mt-8 p-8 rounded-[2.5rem] bg-[#A78BFA]/5 border border-[#A78BFA]/20 space-y-6">
+                                            <div className="flex justify-between items-end border-b border-[#A78BFA]/10 pb-4">
+                                                <div className="space-y-1">
+                                                    <div className="text-[9px] font-black tracking-[0.4em] text-[#A78BFA] uppercase">Selection Summary</div>
+                                                    <div className="text-lg font-black text-white italic tracking-tighter uppercase">{bookingData.date}</div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <div className="text-[10px] font-black text-[#A78BFA] opacity-60">SELECTED SLOTS</div>
+                                                    <div className="text-sm font-black text-white">{bookingData.times.length} Slots</div>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-3">
+                                                {bookingData.times.map((t, idx) => (
+                                                    <div key={idx} className="flex justify-between items-center text-xs">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-1.5 h-1.5 rounded-full bg-[#A78BFA]"></div>
+                                                            <span className="font-medium text-white/70 uppercase">Slot: {t}</span>
+                                                        </div>
+                                                        <span className="font-black text-white/50">₹{bookingData.price_per_slot}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            <div className="pt-4 border-t border-[#A78BFA]/10 space-y-2">
+                                                <div className="flex justify-between items-center text-[10px] font-black tracking-widest text-white/40 uppercase">
+                                                    <span>Subtotal</span>
+                                                    <span>₹{bookingData.subtotal}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center text-[10px] font-black tracking-widest text-white/40 uppercase">
+                                                    <span>GST (18%)</span>
+                                                    <span>₹{bookingData.gst}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center pt-2">
+                                                    <span className="text-[11px] font-black tracking-[0.3em] text-[#A78BFA] uppercase">Final Payable Amount</span>
+                                                    <span className="text-2xl font-black text-white tracking-tighter">₹{bookingData.total}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="flex justify-between items-center pt-8 border-t border-white/5">
+                                        <button onClick={prevStep} className="text-white/40 hover:text-[#A78BFA] text-[10px] font-black tracking-[0.6em] uppercase transition-colors">BACK</button>
+                                        <button
+                                            disabled={!bookingData.date || bookingData.times.length === 0}
+                                            onClick={nextStep}
+                                            className="px-14 py-5 bg-[#A78BFA] text-black rounded-full text-[10px] font-extrabold tracking-[0.6em] uppercase hover:scale-105 transition-all disabled:opacity-10 shadow-[0_20px_40px_rgba(167,139,250,0.2)]"
+                                        >
+                                            CONTINUE
+                                        </button>
+                                    </div>
+                                </div>{/* end space-y-8 */}
                             </motion.div>
                         )}
 
@@ -1121,7 +1175,7 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                 initial="enter"
                                 animate="center"
                                 exit="exit"
-                                className="flex flex-col items-center py-10 space-y-8 w-full max-w-lg mx-auto text-center"
+                                className="flex flex-col items-center py-10 space-y-8 w-full max-w-lg mx-auto text-center relative"
                             >
                                 <div className="relative">
                                     <motion.div
@@ -1151,31 +1205,29 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                                 <div className="flex flex-col w-full gap-4 pt-6">
                                     {/* Download Official Invoice Button ONLY */}
                                     <button
-                                        disabled={!invoiceStatus.ready}
                                         onClick={() => {
-                                            if (invoiceStatus.invoiceDownloadPath) {
-                                                window.open(invoiceStatus.invoiceDownloadPath, '_blank')
+                                            const ref = bookingResponse?.bookingReference;
+                                            if (invoiceStatus.ready && invoiceStatus.invoiceDownloadPath) {
+                                                window.open(invoiceStatus.invoiceDownloadPath, '_blank');
+                                            } else {
+                                                // If not ready yet, we use the fallback route that supports polling
+                                                window.open(`/backend/api/invoice_download.php?ref=${encodeURIComponent(ref)}`, '_blank');
                                             }
                                         }}
-                                        className={`w-full flex items-center justify-center gap-4 py-6 rounded-[2rem] border transition-all transform hover:scale-[1.02] ${invoiceStatus.ready
-                                            ? 'bg-[#A78BFA] border-[#A78BFA] text-black shadow-[0_20px_40px_rgba(167,139,250,0.2)] cursor-pointer hover:bg-white'
-                                            : 'bg-white/5 border-white/10 text-white/40 cursor-not-allowed'
-                                            }`}
+                                        className={`w-full flex items-center justify-center gap-4 py-6 rounded-[2rem] border transition-all transform hover:scale-[1.02] bg-[#A78BFA] border-[#A78BFA] text-black shadow-[0_20px_40px_rgba(167,139,250,0.2)] cursor-pointer hover:bg-white hover:shadow-none`}
                                     >
                                         {invoiceStatus.polling && !invoiceStatus.ready ? (
                                             <div className="flex items-center gap-3">
-                                                <div className="w-5 h-5 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
-                                                <span className="text-[10px] font-black tracking-widest uppercase">Generating Invoice...</span>
+                                                <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+                                                <span className="text-[10px] font-black tracking-widest uppercase">Preparing Invoice...</span>
                                             </div>
-                                        ) : invoiceStatus.ready ? (
+                                        ) : (
                                             <>
                                                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                                 </svg>
                                                 <span className="text-[11px] font-black tracking-widest uppercase">Download Official Invoice</span>
                                             </>
-                                        ) : (
-                                            <span className="text-[10px] font-black tracking-widest uppercase opacity-50">Invoice Generation Pending</span>
                                         )}
                                     </button>
 

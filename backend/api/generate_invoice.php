@@ -5,10 +5,27 @@
  * Called by the Frontend after the booking is confirmed.
  */
 
+ob_start();
+register_shutdown_function(function () {
+    $error = error_get_last();
+    if ($error && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
+        ob_clean();
+        http_response_code(500);
+        header('Content-Type: application/json; charset=UTF-8');
+        echo json_encode([
+            'success'   => false,
+            'message'   => 'Invoicing Fatal: ' . $error['message'],
+            'timestamp' => date('Y-m-d H:i:s')
+        ]);
+    }
+});
+
 require_once '../config/config.php';
 require_once '../config/ZohoInvoiceService.php';
 
 setCorsHeaders();
+ignore_user_abort(true);
+set_time_limit(120);
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     sendResponse(false, null, 'Method not allowed', 405);
@@ -23,7 +40,10 @@ if (!$bookingRef) {
 
 // ── Fetch Booking from DB ───────────────────────────────────────────────────
 $db = Database::getInstance()->getConnection();
-$stmt = $db->prepare("SELECT * FROM bookings WHERE booking_reference = ?");
+$stmt = $db->prepare("SELECT id, name, email, phone, location, show_title, event_date, event_time, 
+                       ticket_type, quantity, total_amount, special_requests, 
+                       company_name, gst_number, billing_address, city, state, zip_code,
+                       zoho_invoice_id FROM bookings WHERE booking_reference = ? LIMIT 1");
 $stmt->execute([$bookingRef]);
 $booking = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -31,24 +51,19 @@ if (!$booking) {
     sendResponse(false, null, 'Booking not found', 404);
 }
 
-// ── Calculate Unit Rate ─────────────────────────────────────────────────────
-$unitRate = 0;
-$loc = strtoupper($booking['location']);
-if ($booking['ticket_type'] === 'Space Rental') {
-    if ($loc === 'CHENNAI') {
-        if (strpos($booking['event_time'], '07:00 AM') !== false || strpos($booking['special_requests'], 'C1') !== false) {
-             $unitRate = 1;
-        } else {
-             $unitRate = 15000;
-        }
-    }
-    elseif ($loc === 'BANGALORE' || $loc === 'BENGALURU') $unitRate = 45000;
-    elseif ($loc === 'COIMBATORE') $unitRate = 30000;
-    else $unitRate = 15000;
-} else {
-    $prices = ['General Admission' => 799, 'VIP' => 1500, 'Premium' => 2500];
-    $unitRate = $prices[$booking['ticket_type']] ?? 799;
+// ── FAST PATH: If already generated, return it ──────────────────────────────
+if (!empty($booking['zoho_invoice_id'])) {
+    sendResponse(true, [
+        'zohoInvoiceId'     => $booking['zoho_invoice_id'],
+        'invoiceDownloadPath' => '/backend/api/invoice_download.php?invoice_id=' . urlencode($booking['zoho_invoice_id'])
+    ], 'Invoice already exists');
 }
+
+// ── Calculate Unit Rate Consistency ─────────────────────────────────────────
+$qty = (float)($booking['quantity'] ?? 1);
+$total = (float)($booking['total_amount'] ?? 0);
+// unitRate = total / 1.18 / qty (to reverse the GST from DB total)
+$unitRate = ($qty > 0) ? round(($total / 1.18) / $qty, 4) : 0;
 
 // ── Generate Invoice ────────────────────────────────────────────────────────
 try {
@@ -75,9 +90,10 @@ try {
     if ($zohoData && isset($zohoData['invoice_id'])) {
         $zohoInvoiceId  = $zohoData['invoice_id'];
         $zohoInvoiceUrl = $zohoData['invoice_url'] ?? '';
+        $zohoCustomerId = $zohoData['customer_id'] ?? null;
 
-        $upd = $db->prepare("UPDATE bookings SET special_requests = CONCAT(special_requests, '\nZoho Invoice ID: ', ?) WHERE booking_reference = ?");
-        $upd->execute([$zohoInvoiceId, $bookingRef]);
+        $upd = $db->prepare("UPDATE bookings SET zoho_invoice_id = ?, zoho_customer_id = ? WHERE booking_reference = ?");
+        $upd->execute([$zohoInvoiceId, $zohoCustomerId, $bookingRef]);
 
         // ── Send Confirmation Email using PHP mail() ──
         $to = $booking['email'];

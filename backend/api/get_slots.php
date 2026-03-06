@@ -21,7 +21,7 @@ try {
     // 2. If date is provided, filter out blocked ones or override price
     if ($date) {
         // Get blocks/overrides
-        $ovStmt = $db->prepare("SELECT slot_id, override_price, is_blocked FROM slot_management WHERE specific_date = ?");
+        $ovStmt = $db->prepare("SELECT slot_id, override_price, is_blocked, block_reason FROM slot_management WHERE specific_date = ?");
         $ovStmt->execute([$date]);
         $overrides = $ovStmt->fetchAll(PDO::FETCH_ASSOC);
         
@@ -39,7 +39,7 @@ try {
             // Check if blocked by admin
             if ($ov && $ov['is_blocked']) {
                 $slot['is_available'] = false;
-                $slot['reason'] = 'Admin Blocked';
+                $slot['reason'] = $ov['block_reason'] ?: 'Admin Blocked';
             } 
             // Check if already booked
             elseif (in_array($slot['slot_range'], $bookedTimes)) {

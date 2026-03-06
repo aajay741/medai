@@ -428,7 +428,7 @@ export default function AdminDashboard() {
                                                     <td className="px-5 py-4 text-white font-semibold whitespace-nowrap">{b.name}</td>
                                                     <td className="px-5 py-4 text-white/60 max-w-[180px] truncate">{b.email}</td>
                                                     <td className="px-5 py-4 text-white/80 whitespace-nowrap">{b.location}</td>
-                                                    <td className="px-5 py-4 text-white/80 whitespace-nowrap">{b.event_date}</td>
+                                                    <td className="px-5 py-4 text-white/80 whitespace-nowrap">{b.event_date ? b.event_date.split('-').reverse().join('/') : '—'}</td>
                                                     <td className="px-5 py-4 text-white/80 whitespace-nowrap">{b.quantity} × {b.ticket_type}</td>
                                                     <td className="px-5 py-4 text-emerald-400 font-black whitespace-nowrap">₹{Number(b.total_amount).toLocaleString('en-IN')}</td>
                                                     <td className="px-5 py-4">
@@ -487,7 +487,7 @@ export default function AdminDashboard() {
                                             </div>
                                             <div className="bg-white/5 rounded-lg p-2">
                                                 <p className="text-white/30 mb-0.5">Event Date</p>
-                                                <p className="text-white font-semibold">{b.event_date}</p>
+                                                <p className="text-white font-semibold">{b.event_date ? b.event_date.split('-').reverse().join('/') : '—'}</p>
                                             </div>
                                             <div className="bg-white/5 rounded-lg p-2">
                                                 <p className="text-white/30 mb-0.5">Tickets</p>

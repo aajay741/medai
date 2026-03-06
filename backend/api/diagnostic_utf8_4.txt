@@ -1,0 +1,2 @@
+﻿Code: 200
+Res: {"success":true,"message":"Invoice generated & email sent","data":{"zohoInvoiceId":"3612443000000055002","zohoInvoiceUrl":"https:\/\/zohoinvoicepay.in\/invoice\/medaiprivatelimited\/secure?CInvoiceID=2-4799b1cf958511117ca987a8b4c17a639af6c3ea2057fb53e08f3e2f635848cdf589dea74408f891d3e64da237df7ebb05f130e22ae633486ae0303a5d5b52f3bf747bf136c83d3b ","invoiceDownloadPath":"\/backend\/api\/invoice_download.php?invoice_id=3612443000000055002"},"timestamp":"2026-03-06 12:28:40"}

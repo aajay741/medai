@@ -13,7 +13,7 @@ import { BlendFunction } from 'postprocessing'
 // OPTIMIZATION: Check if we're on mobile for performance adjustments
 const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
 
-export default function CanvasWrapper({ scrollProgressRef, tier = 2 }) {
+export default function CanvasWrapper({ scrollProgressRef, tier = 2, isPaused = false }) {
     const isLowTier = tier === 0
     const isMidTier = tier === 1
 
@@ -34,7 +34,7 @@ export default function CanvasWrapper({ scrollProgressRef, tier = 2 }) {
             shadows={false} // Shadows disabled (not used in current scene)
             flat // Disable tone mapping for better performance
             linear // Use linear color space (faster)
-            frameloop="always"
+            frameloop={isPaused ? "demand" : "always"}
             // OPTIMIZATION: Enable frustum culling
             onCreated={({ gl, scene }) => {
                 if (!gl || !scene) return
@@ -73,7 +73,7 @@ export default function CanvasWrapper({ scrollProgressRef, tier = 2 }) {
                 <EffectComposer
                     multisampling={0} // Disable MSAA (expensive)
                     enabled={!isMobile && tier > 1} // Disable post-processing on mobile or low/mid tiers
-                    resolutionScale={isLowTier ? 0.5 : 0.8}
+                    resolutionScale={isPaused ? 0.2 : (isLowTier ? 0.5 : 0.8)}
                 >
                     <Bloom
                         intensity={isMobile ? 0.4 : 0.8}

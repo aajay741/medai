@@ -70,16 +70,18 @@ try {
         // Insert booking
         $stmt = $db->prepare("
             INSERT INTO bookings 
-            (booking_reference, name, email, phone, location, event_date, event_time, 
+            (booking_reference, name, email, phone, location, show_title, event_date, event_time, 
              ticket_type, quantity, total_amount, special_requests, 
              company_name, gst_number, billing_address, city, state, zip_code, purpose,
              booking_status, payment_status)
             VALUES 
-            (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'confirmed', 'completed')
+            (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'confirmed', 'completed')
         ");
         
+        $showTitle = $input['showTitle'] ?? 'MEDAI Performance';
+        
         $stmt->execute([
-            $bookingRef, $name, $email, $phone, $location, $eventDate, 
+            $bookingRef, $name, $email, $phone, $location, $showTitle, $eventDate, 
             $eventTime, $ticketType, $quantity, $totalAmount, $specialRequests,
             $companyName, $gstNumber, $billingAddress, $city, $state, $zipCode, $purpose
         ]);

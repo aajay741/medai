@@ -1,0 +1,20 @@
+﻿[Fri Mar 06 12:21:05.466427 2026] [php:notice] [pid 4264:tid 1960] [client 127.0.0.1:50011] Zoho: Searching/Creating customer for r.hariharan@gmail.com
+[Fri Mar 06 12:21:06.109048 2026] [php:notice] [pid 4264:tid 1960] [client 127.0.0.1:50011] Zoho: Creating new customer...
+[Fri Mar 06 12:21:06.687185 2026] [php:notice] [pid 4264:tid 1960] [client 127.0.0.1:50011] Zoho: Failed to create customer - {"code":3062,"message":"The customer \\"kishore\\" already exists. Please specify a different name."}
+[Fri Mar 06 12:21:06.688185 2026] [php:notice] [pid 4264:tid 1960] [client 127.0.0.1:50011] Zoho Generation Error: Failed to create Zoho Contact: The customer "kishore" already exists. Please specify a different name.
+[Fri Mar 06 12:22:55.786843 2026] [php:notice] [pid 4264:tid 1960] [client 127.0.0.1:56862] Zoho: Starting createInvoice process...
+[Fri Mar 06 12:22:55.787854 2026] [php:notice] [pid 4264:tid 1960] [client 127.0.0.1:56862] Zoho: Searching/Creating customer for r.hariharan@gmail.com
+[Fri Mar 06 12:22:56.917637 2026] [php:notice] [pid 4264:tid 1960] [client 127.0.0.1:56862] Zoho: Found existing contact by name: 3612443000000034002
+[Fri Mar 06 12:22:57.415703 2026] [php:notice] [pid 4264:tid 1960] [client 127.0.0.1:56862] Zoho: Invoice creation failed - {"code":15,"message":"Please ensure that the \\"billing_address\\" has less than 100 characters."}
+[Fri Mar 06 12:22:57.417270 2026] [php:notice] [pid 4264:tid 1960] [client 127.0.0.1:56862] Zoho Generation Error: Zoho Invoice Error: Please ensure that the "billing_address" has less than 100 characters.
+[Fri Mar 06 12:24:28.808342 2026] [php:notice] [pid 4264:tid 1960] [client 127.0.0.1:60032] Zoho: Starting createInvoice process...
+[Fri Mar 06 12:24:28.809442 2026] [php:notice] [pid 4264:tid 1960] [client 127.0.0.1:60032] Zoho: Searching/Creating customer for r.hariharan@gmail.com
+[Fri Mar 06 12:24:30.445086 2026] [php:notice] [pid 4264:tid 1960] [client 127.0.0.1:60032] Zoho: Found existing contact by name: 3612443000000034002
+[Fri Mar 06 12:24:30.929691 2026] [php:notice] [pid 4264:tid 1960] [client 127.0.0.1:60032] Zoho: Invoice creation failed - {"code":15,"message":"Please ensure that the \\"billing_address\\" has less than 100 characters."}
+[Fri Mar 06 12:24:30.932218 2026] [php:notice] [pid 4264:tid 1960] [client 127.0.0.1:60032] Zoho Generation Error: Zoho Invoice Error: Please ensure that the "billing_address" has less than 100 characters.
+[Fri Mar 06 12:27:03.368467 2026] [php:notice] [pid 4264:tid 1960] [client 127.0.0.1:62291] Zoho: Starting createInvoice process...
+[Fri Mar 06 12:27:03.369593 2026] [php:notice] [pid 4264:tid 1960] [client 127.0.0.1:62291] Zoho: Searching/Creating customer for r.hariharan@gmail.com
+[Fri Mar 06 12:27:04.657701 2026] [php:notice] [pid 4264:tid 1960] [client 127.0.0.1:62291] Zoho: Found existing contact by name: 3612443000000034002
+[Fri Mar 06 12:27:04.659271 2026] [php:notice] [pid 4264:tid 1960] [client 127.0.0.1:62291] Zoho Invoice Data: {"customer_id":"3612443000000034002","reference_number":"MEDAI-C9391A7D","date":"2026-03-06","payment_terms":0,"notes":"Thank you for booking with MEDAI!","line_items":[{"name":"MEDAI Booking \\u2014 CHENNAI","description":"Booking: 2026-03-26 at 07:00 AM \\u2013 10:00 AM | Space Rental \\u00d7 1 | Ref: MEDAI-C9391A7D","rate":0.8475,"quantity":1,"tax_name":"GST (18%)","tax_percentage":18,"tax_id":"3612443000000032469"}],"billing_address":{"attention":"kishore","address":"lfjifudhrf","city":"aravnampapti","state":"tamil nadu","zip":"6256605","country":"India","phone":"7305543020"}}
+[Fri Mar 06 12:27:05.056522 2026] [php:notice] [pid 4264:tid 1960] [client 127.0.0.1:62291] Zoho: Invoice creation failed - {"code":15,"message":"Please ensure that the \\"billing_address\\" has less than 100 characters."}
+[Fri Mar 06 12:27:05.057772 2026] [php:notice] [pid 4264:tid 1960] [client 127.0.0.1:62291] Zoho Generation Error: Zoho Invoice Error: Please ensure that the "billing_address" has less than 100 characters.

@@ -157,7 +157,7 @@ export default function App() {
 
             {/* 3D Core - Shared Background */}
             <div className="fixed inset-0 z-0 pointer-events-none">
-                <CanvasWrapper scrollProgressRef={scrollProgressRef} tier={tier} />
+                <CanvasWrapper scrollProgressRef={scrollProgressRef} tier={tier} isPaused={isBookingOpen} />
             </div>
 
             {/* Global Spotlights - Follow Scroll on All Pages - Disabled on Mobile */}
