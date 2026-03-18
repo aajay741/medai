@@ -25,7 +25,7 @@ export default function Footer({ tier = 2 }) {
         fetch('/backend/api/site_settings.php')
             .then(res => res.json())
             .then(data => {
-                if (data.success) setSettings(data.data)
+                if (data.success) setSettings(prev => ({ ...prev, ...data.data }))
             })
             .catch(err => console.error('Error fetching settings:', err))
     }, [])
@@ -142,7 +142,7 @@ export default function Footer({ tier = 2 }) {
                     transition={{ duration: 1, delay: 0.6 }}
                     className="pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6 text-[9px] tracking-[0.4em] uppercase font-black text-white/20 text-center md:text-left"
                 >
-                    <div>© 2026 MEDAI Trust. All rights reserved.</div>
+                    <div>"© 2026 Medai Private Limited. All rights reserved.</div>
                     <div className="flex gap-8">
                         {['Privacy', 'Technical Rider', 'Terms'].map(link => (
                             <span key={link} className="hover:text-white cursor-pointer transition-colors">{link}</span>

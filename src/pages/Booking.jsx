@@ -4,7 +4,7 @@ import confetti from 'canvas-confetti'
 
 const VENUE_SLOTS = {
     'CHENNAI': [
-        { code: 'C1', range: '07:00 AM – 10:00 AM', duration: '3 Hours', price: 1, total: 1 },
+        { code: 'C1', range: '07:00 AM – 10:00 AM', duration: '3 Hours', price: 15000, total: 17700 },
         { code: 'C2', range: '11:00 AM – 02:00 PM', duration: '3 Hours', price: 15000, total: 17700 },
         { code: 'C3', range: '03:00 PM – 06:00 PM', duration: '3 Hours', price: 15000, total: 17700 },
         { code: 'C4', range: '07:00 PM – 10:00 PM', duration: '3 Hours', price: 15000, total: 17700 },
@@ -183,7 +183,7 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
         { id: 'coimbatore', name: 'COIMBATORE', venue: 'MEDAI Space' }
     ]
 
-    const locations = allEvents.length > 0
+    const dynamicLocations = allEvents.length > 0
         ? Array.from(new Set(allEvents.filter(e => e.location).map(e => e.location))).map(loc => {
             const event = allEvents.find(e => e.location === loc)
             return {
@@ -192,7 +192,15 @@ export default function Booking({ isOpen, onClose, initialLocation = '' }) {
                 venue: event?.venue_name || 'MEDAI Space'
             }
         })
-        : defaultLocations
+        : []
+
+    // Ensure Chennai, Bengaluru, and Coimbatore are always present
+    const locations = [...defaultLocations]
+    dynamicLocations.forEach(dLoc => {
+        if (!locations.find(l => l.name === dLoc.name)) {
+            locations.push(dLoc)
+        }
+    })
 
     const selectedLocation = (bookingData.location || '').trim().toUpperCase()
 

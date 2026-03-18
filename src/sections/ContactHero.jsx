@@ -1,10 +1,25 @@
 import { motion } from 'framer-motion'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Canvas } from '@react-three/fiber'
 import NeuralPulse3D from '../components/NeuralPulse3D'
 import { Suspense } from 'react'
 
 export default function ContactHero() {
+    const [settings, setSettings] = useState({
+        contact_email: 'medaibookings@gmail.com',
+        contact_phone: '+91 98765 43210'
+    })
+
+    useEffect(() => {
+        fetch('/backend/api/site_settings.php')
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) setSettings(prev => ({ ...prev, ...data.data }))
+            })
+            .catch(err => console.error('Error fetching settings:', err))
+    }, [])
+
     return (
         <section className="relative min-h-[90vh] flex items-center justify-center pt-32 pb-20 px-6 overflow-hidden bg-[#030303]">
             {/* Cinematic 3D Background */}
@@ -34,9 +49,9 @@ export default function ContactHero() {
 
                 <div className="grid md:grid-cols-3 gap-12 max-w-5xl mx-auto mt-20">
                     {[
-                        { label: 'General Inquiry', val: 'hello@medai.in' },
+                        { label: 'General Inquiry', val: settings.contact_email },
                         { label: 'Booking Desk', val: 'booking@medai.in' },
-                        { label: 'Artist Support', val: '+91 98765 43210' }
+                        { label: 'Artist Support', val: settings.contact_phone }
                     ].map((item, i) => (
                         <motion.div
                             key={i}

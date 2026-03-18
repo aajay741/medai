@@ -43,7 +43,16 @@ export default function AdminDashboard() {
         toDate: '',
     })
     const [currentPage, setCurrentPage] = useState(1)
-    const [siteSettings, setSiteSettings] = useState({ contact_email: '', contact_phone: '' })
+    const [siteSettings, setSiteSettings] = useState({
+        contact_email: '',
+        contact_phone: '',
+        contact_phone_chennai: '',
+        contact_phone_bengaluru: '',
+        contact_phone_coimbatore: '',
+        contact_email_chennai: '',
+        contact_email_bengaluru: '',
+        contact_email_coimbatore: ''
+    })
     const [updatingSettings, setUpdatingSettings] = useState(false)
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
     const [settingsSaved, setSettingsSaved] = useState(false)
@@ -126,7 +135,7 @@ export default function AdminDashboard() {
         try {
             const res = await fetch('/backend/api/site_settings.php')
             const data = await res.json()
-            if (data.success) setSiteSettings(data.data)
+            if (data.success) setSiteSettings(prev => ({ ...prev, ...data.data }))
         } catch (err) { console.error(err) }
     }
 
@@ -242,42 +251,124 @@ export default function AdminDashboard() {
 
                 {/* ── Site Settings ── */}
                 <section className="rounded-2xl bg-white/[0.04] border border-white/10 backdrop-blur-xl p-5 sm:p-7">
-                    <h2 className="text-sm font-black uppercase tracking-widest text-[#A78BFA] mb-5 flex items-center gap-2">
+                    <h2 className="text-sm font-black uppercase tracking-widest text-[#A78BFA] mb-8 flex items-center gap-2">
                         <span className="w-6 h-6 rounded-md bg-[#A78BFA]/20 flex items-center justify-center text-[#A78BFA] text-xs">⚙</span>
-                        Contact Settings
+                        Global & City Contact Settings
                     </h2>
-                    <form onSubmit={saveSiteSettings} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
-                        <div>
-                            <label className="block text-[10px] font-bold tracking-widest text-white/40 uppercase mb-2">General Email</label>
-                            <input
-                                type="email"
-                                value={siteSettings.contact_email || ''}
-                                onChange={(e) => setSiteSettings({ ...siteSettings, contact_email: e.target.value })}
-                                className="w-full bg-[#1a1025] border border-white/15 rounded-lg px-4 py-3 text-white text-sm focus:outline-none focus:border-[#A78BFA] transition-all"
-                                placeholder="info@medai.org"
-                            />
+                    
+                    <form onSubmit={saveSiteSettings} className="space-y-10">
+                        {/* Global Settings */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <div className="lg:col-span-3">
+                                <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30 mb-4 border-b border-white/5 pb-2">Global Defaults</h3>
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-bold tracking-widest text-white/40 uppercase mb-2">General Email</label>
+                                <input
+                                    type="email"
+                                    value={siteSettings.contact_email || ''}
+                                    onChange={(e) => setSiteSettings({ ...siteSettings, contact_email: e.target.value })}
+                                    className="w-full bg-[#1a1025] border border-white/15 rounded-lg px-4 py-3 text-white text-sm focus:outline-none focus:border-[#A78BFA] transition-all"
+                                    placeholder="info@medai.org"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-bold tracking-widest text-white/40 uppercase mb-2">General Phone</label>
+                                <input
+                                    type="text"
+                                    value={siteSettings.contact_phone || ''}
+                                    onChange={(e) => setSiteSettings({ ...siteSettings, contact_phone: e.target.value })}
+                                    className="w-full bg-[#1a1025] border border-white/15 rounded-lg px-4 py-3 text-white text-sm focus:outline-none focus:border-[#A78BFA] transition-all"
+                                    placeholder="+91 98765 43210"
+                                />
+                            </div>
                         </div>
-                        <div>
-                            <label className="block text-[10px] font-bold tracking-widest text-white/40 uppercase mb-2">General Phone</label>
-                            <input
-                                type="text"
-                                value={siteSettings.contact_phone || ''}
-                                onChange={(e) => setSiteSettings({ ...siteSettings, contact_phone: e.target.value })}
-                                className="w-full bg-[#1a1025] border border-white/15 rounded-lg px-4 py-3 text-white text-sm focus:outline-none focus:border-[#A78BFA] transition-all"
-                                placeholder="+91 98765 43210"
-                            />
+
+                        {/* City Specific Settings */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                            {/* Chennai */}
+                            <div className="space-y-4 p-4 rounded-xl bg-white/[0.02] border border-white/5">
+                                <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-[#A78BFA] mb-2">Chennai</h3>
+                                <div>
+                                    <label className="block text-[10px] font-bold tracking-widest text-white/20 uppercase mb-1">Phone</label>
+                                    <input
+                                        type="text"
+                                        value={siteSettings.contact_phone_chennai || ''}
+                                        onChange={(e) => setSiteSettings({ ...siteSettings, contact_phone_chennai: e.target.value })}
+                                        className="w-full bg-[#030303] border border-white/10 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-[#A78BFA]"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-bold tracking-widest text-white/20 uppercase mb-1">Email</label>
+                                    <input
+                                        type="email"
+                                        value={siteSettings.contact_email_chennai || ''}
+                                        onChange={(e) => setSiteSettings({ ...siteSettings, contact_email_chennai: e.target.value })}
+                                        className="w-full bg-[#030303] border border-white/10 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-[#A78BFA]"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Bengaluru */}
+                            <div className="space-y-4 p-4 rounded-xl bg-white/[0.02] border border-white/5">
+                                <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-[#A78BFA] mb-2">Bengaluru</h3>
+                                <div>
+                                    <label className="block text-[10px] font-bold tracking-widest text-white/20 uppercase mb-1">Phone</label>
+                                    <input
+                                        type="text"
+                                        value={siteSettings.contact_phone_bengaluru || ''}
+                                        onChange={(e) => setSiteSettings({ ...siteSettings, contact_phone_bengaluru: e.target.value })}
+                                        className="w-full bg-[#030303] border border-white/10 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-[#A78BFA]"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-bold tracking-widest text-white/20 uppercase mb-1">Email</label>
+                                    <input
+                                        type="email"
+                                        value={siteSettings.contact_email_bengaluru || ''}
+                                        onChange={(e) => setSiteSettings({ ...siteSettings, contact_email_bengaluru: e.target.value })}
+                                        className="w-full bg-[#030303] border border-white/10 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-[#A78BFA]"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Coimbatore */}
+                            <div className="space-y-4 p-4 rounded-xl bg-white/[0.02] border border-white/5">
+                                <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-[#A78BFA] mb-2">Coimbatore</h3>
+                                <div>
+                                    <label className="block text-[10px] font-bold tracking-widest text-white/20 uppercase mb-1">Phone</label>
+                                    <input
+                                        type="text"
+                                        value={siteSettings.contact_phone_coimbatore || ''}
+                                        onChange={(e) => setSiteSettings({ ...siteSettings, contact_phone_coimbatore: e.target.value })}
+                                        className="w-full bg-[#030303] border border-white/10 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-[#A78BFA]"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-bold tracking-widest text-white/20 uppercase mb-1">Email</label>
+                                    <input
+                                        type="email"
+                                        value={siteSettings.contact_email_coimbatore || ''}
+                                        onChange={(e) => setSiteSettings({ ...siteSettings, contact_email_coimbatore: e.target.value })}
+                                        className="w-full bg-[#030303] border border-white/10 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-[#A78BFA]"
+                                    />
+                                </div>
+                            </div>
                         </div>
-                        <button
-                            type="submit"
-                            disabled={updatingSettings}
-                            className="h-[46px] bg-[#A78BFA] hover:bg-white text-black rounded-lg font-black text-xs tracking-widest uppercase transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                        >
-                            {updatingSettings
-                                ? 'Saving…'
-                                : settingsSaved
-                                    ? '✓ Saved!'
-                                    : 'Update Details'}
-                        </button>
+
+                        <div className="flex justify-end">
+                            <button
+                                type="submit"
+                                disabled={updatingSettings}
+                                className="px-8 py-3 bg-[#A78BFA] hover:bg-white text-black rounded-full font-black text-xs tracking-[0.2em] uppercase transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-xl"
+                            >
+                                {updatingSettings
+                                    ? 'Saving Changes…'
+                                    : settingsSaved
+                                        ? '✓ Settings Saved'
+                                        : 'Update All Details'}
+                            </button>
+                        </div>
                     </form>
                 </section>
 

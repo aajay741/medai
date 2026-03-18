@@ -39,12 +39,12 @@ try {
             // Check if blocked by admin
             if ($ov && $ov['is_blocked']) {
                 $slot['is_available'] = false;
-                $slot['reason'] = $ov['block_reason'] ?: 'Admin Blocked';
+                $slot['reason'] = 'Admin Blocked';
             } 
             // Check if already booked
             elseif (in_array($slot['slot_range'], $bookedTimes)) {
                 $slot['is_available'] = false;
-                $slot['reason'] = 'Already Booked';
+                $slot['reason'] = 'Booked';
             }
             else {
                 $slot['is_available'] = true;

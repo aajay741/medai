@@ -1,6 +1,21 @@
 import { motion } from 'framer-motion'
+import { useState, useEffect } from 'react'
 
 export default function Contact() {
+    const [settings, setSettings] = useState({
+        contact_email: 'medaibookings@gmail.com',
+        contact_phone: '+91 98765 43210'
+    })
+
+    useEffect(() => {
+        fetch('/backend/api/site_settings.php')
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) setSettings(prev => ({ ...prev, ...data.data }))
+            })
+            .catch(err => console.error('Error fetching settings:', err))
+    }, [])
+
     return (
         <footer className="relative pt-16 pb-12 px-6 bg-[#030303] z-20 overflow-hidden">
             {/* Cinematic Background Glow */}
@@ -51,8 +66,8 @@ export default function Contact() {
                                 transition={{ duration: 0.4 }}
                             >
                                 <span className="text-[11px] md:text-xs font-black tracking-[0.5em] block mb-6 text-[#A78BFA] opacity-80 uppercase">Direct</span>
-                                <p className="font-black text-xl md:text-2xl mb-1 tracking-tighter hover:text-[#A78BFA] transition-colors cursor-pointer text-white">hello@medai.in</p>
-                                <p className="text-[#A78BFA] opacity-60 text-sm italic tracking-widest font-bold">+91 98765 43210</p>
+                                <p className="font-black text-xl md:text-2xl mb-1 tracking-tighter hover:text-[#A78BFA] transition-colors cursor-pointer text-white">{settings.contact_email}</p>
+                                <p className="text-[#A78BFA] opacity-60 text-sm italic tracking-widest font-bold">{settings.contact_phone}</p>
                             </motion.div>
                             <div className="pt-8">
                                 <motion.button

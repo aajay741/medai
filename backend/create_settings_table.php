@@ -15,8 +15,14 @@ try {
 
     // Insert defaults if not exists
     $defaults = [
-        'contact_email' => 'info@medai.org',
-        'contact_phone' => '+91 98765 43210'
+        'contact_email' => 'medaibookings@gmail.com',
+        'contact_phone' => '+91 98765 43210',
+        'contact_phone_chennai' => '+91 98765 43210',
+        'contact_phone_bengaluru' => '+91 98765 43211',
+        'contact_phone_coimbatore' => '+91 98765 43212',
+        'contact_email_chennai' => 'medaibookings@gmail.com',
+        'contact_email_bengaluru' => 'medaibookings@gmail.com',
+        'contact_email_coimbatore' => 'medaibookings@gmail.com'
     ];
 
     foreach ($defaults as $key => $value) {

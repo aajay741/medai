@@ -10,32 +10,7 @@ const INQUIRY_TYPES = [
     'General Inquiry'
 ]
 
-const locations = [
-    {
-        city: "MEDAI Chennai",
-        address: "123 Cenotaph Road",
-        area: "Alwarpet",
-        pin: "Chennai - 600018",
-        email: "chennai@medai.org",
-        phone: "+91 98765 43210"
-    },
-    {
-        city: "MEDAI Bengaluru",
-        address: "Museum Rd, opp. Patricks Church",
-        area: "Shanthala Nagar, Richmond Town",
-        pin: "Bengaluru, Karnataka - 560025",
-        email: "medaibookings@gmail.com",
-        phone: "+91 98765 43211"
-    },
-    {
-        city: "MEDAI Coimbatore",
-        address: "Hope College Campus",
-        area: "Peelamedu",
-        pin: "Coimbatore - 641004",
-        email: "coimbatore@medai.org",
-        phone: "+91 98765 43212"
-    }
-]
+
 
 export default function ContactSection({ tier = 2, isMobile = false }) {
     const isLowTier = tier === 0 || isMobile
@@ -49,14 +24,20 @@ export default function ContactSection({ tier = 2, isMobile = false }) {
     const [submitted, setSubmitted] = useState(false)
     const [settings, setSettings] = useState({
         contact_email: 'medaibookings@gmail.com',
-        contact_phone: '+91 98765 43210'
+        contact_phone: '+91 98765 43210',
+        contact_phone_chennai: '+91 98765 43210',
+        contact_phone_bengaluru: '+91 98765 43211',
+        contact_phone_coimbatore: '+91 98765 43212',
+        contact_email_chennai: 'medaibookings@gmail.com',
+        contact_email_bengaluru: 'medaibookings@gmail.com',
+        contact_email_coimbatore: 'medaibookings@gmail.com'
     })
 
     useEffect(() => {
         fetch('/backend/api/site_settings.php')
             .then(res => res.json())
             .then(data => {
-                if (data.success) setSettings(data.data)
+                if (data.success) setSettings(prev => ({ ...prev, ...data.data }))
             })
             .catch(err => console.error('Error fetching settings:', err))
     }, [])
@@ -117,7 +98,32 @@ export default function ContactSection({ tier = 2, isMobile = false }) {
 
                 {/* Location Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-20">
-                    {locations.map((loc, i) => (
+                    {[
+                        {
+                            city: "MEDAI Chennai",
+                            address: "123 Cenotaph Road",
+                            area: "Alwarpet",
+                            pin: "Chennai - 600018",
+                            email: settings.contact_email_chennai || "medaibookings@gmail.com",
+                            phone: settings.contact_phone_chennai || "+91 98765 43210"
+                        },
+                        {
+                            city: "MEDAI Bengaluru",
+                            address: "Museum Rd, opp. Patricks Church",
+                            area: "Shanthala Nagar, Richmond Town",
+                            pin: "Bengaluru, Karnataka - 560025",
+                            email: settings.contact_email_bengaluru || "medaibookings@gmail.com",
+                            phone: settings.contact_phone_bengaluru || "+91 98765 43211"
+                        },
+                        {
+                            city: "MEDAI Coimbatore",
+                            address: "Hope College Campus",
+                            area: "Peelamedu",
+                            pin: "Coimbatore - 641004",
+                            email: settings.contact_email_coimbatore || "medaibookings@gmail.com",
+                            phone: settings.contact_phone_coimbatore || "+91 98765 43212"
+                        }
+                    ].map((loc, i) => (
                         <motion.div
                             key={i}
                             initial={isLowTier ? { opacity: 0 } : { opacity: 0, y: 40 }}
